@@ -49,18 +49,19 @@ class Cortages(CreatorBase):
         await asyncio.sleep(0)
 
     async def process_bukva_index(self):
+        self.modifierMap = {}  # символ → {'shift': bool, 'alt': bool}
+
         for row_idx, row in enumerate(self.symbols):
             pointer = 0  # указывает на колонку в self.matrix[row_idx]
             last_key = None  # индекс последней «обычной» клавиши
 
             for tok in row:
-                # если вышли за число физических клавиш в строке — выходим
                 if pointer >= len(self.matrix[row_idx]):
                     break
 
                 idx = self.matrix[row_idx][pointer]
 
-                # 1) обычный символ (без shift/alt) → привязываем и сдвигаем pointer
+                # 1) обычный символ (без shift/alt)
                 if not tok.startswith(('shift+', 'alt+')):
                     self.bukvaKey.setdefault(idx, [])
 
@@ -68,6 +69,7 @@ class Cortages(CreatorBase):
                     for s in symbols:
                         if s not in self.bukvaKey[idx]:
                             self.bukvaKey[idx].append(s)
+                            self.modifierMap[s] = {'shift': False, 'alt': False}
 
                     last_key = idx
                     pointer += 1
@@ -76,24 +78,24 @@ class Cortages(CreatorBase):
                 # 2) shift-модификатор
                 if tok.startswith('shift+'):
                     sym = tok.split('+', 1)[1]
-                    if last_key is not None:
-                        self.bukvaKey.setdefault(last_key, [])
-                        if sym not in self.bukvaKey[last_key]:
-                            self.bukvaKey[last_key].append(sym)
+                    self.bukvaKey.setdefault(last_key, [])
+                    if sym not in self.bukvaKey[last_key]:
+                        self.bukvaKey[last_key].append(sym)
+                        self.modifierMap[sym] = {'shift': True, 'alt': False}
                     continue
 
                 # 3) alt-модификатор
                 if tok.startswith('alt+'):
                     sym = tok.split('+', 1)[1]
-                    pair = [sym, sym.upper()]
-                    if last_key is not None:
-                        self.bukvaKey.setdefault(last_key, [])
-                        for s in pair:
-                            if s not in self.bukvaKey[last_key]:
-                                self.bukvaKey[last_key].append(s)
+                    pair = [sym, sym.upper()] if sym.islower() else [sym]
+                    self.bukvaKey.setdefault(last_key, [])
+                    for s in pair:
+                        if s not in self.bukvaKey[last_key]:
+                            self.bukvaKey[last_key].append(s)
+                            self.modifierMap[s] = {'shift': False, 'alt': True}
                     continue
 
-            await asyncio.sleep(0)
+        await asyncio.sleep(0)
 
     async def initialize(self):
         await self.create_tuples()
@@ -169,7 +171,8 @@ async def keyInitializations():
             'bukvaKey': layout.bukvaKey,
             'fingerKey': layout.fingerKey,
             'shtrafKey': layout.shtrafKey,
-            'fingerShtraf': layout.fingerShtraf
+            'fingerShtraf': layout.fingerShtraf,
+            'modifierMap': layout.modifierMap
         }
         for layout in layouts
     }
