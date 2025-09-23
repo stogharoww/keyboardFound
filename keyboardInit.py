@@ -1,4 +1,7 @@
 import asyncio
+import aiofiles
+import pandas as pd
+
 class CreatorBase: # Класс, разделяющий клавиши на правую и левую руку
     def __init__(self, matrix):
         self.matrix = matrix
@@ -177,4 +180,15 @@ async def keyInitializations():
         for layout in layouts
     }
 
+async def importFromFiles(textFile, digramsFile, csvFile):
 
+    async with aiofiles.open(textFile, "r", encoding="utf-8") as f:
+        text = await f.read()
+
+    async with aiofiles.open(digramsFile, "r", encoding="utf-8") as f:
+        lines = await f.readlines()
+        digrams = [line.strip() for line in lines]
+
+    csvText = pd.read_csv(csvFile, header=None, sep=",")
+
+    return text, digrams, csvText

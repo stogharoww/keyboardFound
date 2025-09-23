@@ -1,23 +1,17 @@
-from keyboardInit import keyInitializations as keyb
+from keyboardInit import keyInitializations
 import pandas as pd
 import asyncio
 import aiofiles
 
 
 class TextAnalyzer:
-    def __init__(self, textFile, csvFile, digrams):
+    def __init__(self):
         """
-        Инициализирует анализатор текста с путями к файлам:
-        - textFile: путь к основному тексту для анализа
-        - csvFile: путь к CSV-файлу с дополнительными данными (например, частотами)
-        - digrams: путь к CSV-файлу с биграммами
+        хз пробел, тут что-то надо чисто чтобы заполнить и всё. Если будет нужно, используйте
         """
-        self.textFile = textFile
-        self.csvFile = csvFile
-        self.digramsFile = digrams
 
     async def keybsInits(self):
-        self.layouts = await keyb.keyboardInitialization()
+        self.layouts = await keyInitializations()
 
     async def importFromFiles(self):
         """
@@ -27,13 +21,14 @@ class TextAnalyzer:
         - digrams: таблица биграмм в формате pandas.DataFrame
         """
         async with aiofiles.open(self.textFile, "r", encoding="utf-8") as f:
-            self.text = f.read()
+            self.text = await f.read()
 
-        async with aiofiles.open(self.csvFile, "r", encoding="utf-8") as f:
+        async with aiofiles.open(self.digramsFile, "r", encoding="utf-8") as f:
             lines = await f.readlines()
-            self.csvText = [line.strip() for line in lines]
+            self.digrams = [line.strip() for line in lines]
 
-        self.digrams = pd.read_csv(self.digramsFile, header=None)
+        self.csvText = pd.read_csv(self.csvFile, header=None, sep=",")
+
 
 
 
@@ -63,7 +58,15 @@ class TextAnalyzer:
         :return: целое число — сумма штрафов за модификаторы
         """
 
-    def calculateEffort(self, char: str, layout: dict, last_hand: dict) -> tuple[int, str]:
+    def changeHand(self, char, previousChar):
+        """
+        сравнивает текущую и предыдущую руку, если r поменялось на l или наоборот, то +1 штраф
+        :param char:
+        :param previousChar:
+        :return:
+        """
+
+    def calculateEffortSymbol(self, char: str, layout: dict, last_hand: dict) -> tuple[int, str]:
         """
         Суммирует все штрафы для символа:
         - за клавишу
@@ -73,6 +76,15 @@ class TextAnalyzer:
         :param layout: словарь раскладки
         :param last_hand: словарь с последней активной рукой
         :return: кортеж (общий штраф, текущая рука)
+        """
+
+    def calculateEffortFinger(self, finger: str, layout: dict, calculateEffortSymb: dict):
+        """
+        Суммирует все штрафы по конкретному пальцу
+        :param finger:
+        :param layout:
+        :param calculateEffortSymb:
+        :return:
         """
 
     def analyzeText(self, text: str, layout: dict) -> dict:
@@ -89,7 +101,9 @@ class TextAnalyzer:
 
     def compareLayouts(self, text: str, layouts: dict) -> dict:
         """
-        Запускает analyzeText для каждой раскладки и собирает сравнительную статистику
+        Запускает анализы для каждой раскладки и текста и собирает сравнительную статистику,
+        собирает значения для каждого пальца.
+        Это финальная логическая функция, которая реально что-то считает
         :param text: строка текста для анализа
         :param layouts: словарь всех раскладок
         :return: словарь с результатами по каждой раскладке
@@ -97,6 +111,8 @@ class TextAnalyzer:
 
     def returnResults(self, result: dict) -> None:
         """
+        Функция, которая создана исключительно только для вывода финальных результатов для графиков
+        выводит нагрузки по каждому пальцу
         Форматирует и выводит результаты анализа:
         - нагрузка по пальцам
         - общая нагрузка
