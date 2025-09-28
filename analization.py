@@ -362,6 +362,7 @@ class TextAnalyzer:
         }
 
 
+
     def compareLayouts(self, text: str, layouts: dict) -> dict:
         """
         Запускает анализы для каждой раскладки и текста и собирает сравнительную статистику,
