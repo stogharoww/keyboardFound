@@ -169,6 +169,9 @@ async def keyInitializations():
         for keyIndex in sorted(layout.bukvaKey.keys(), key=lambda x: int(x)):
             joined = " | ".join(layout.bukvaKey[keyIndex])
             print(f"Клавиша {keyIndex}: {joined}")
+
+
+
     return {
         layout.layout_name: {
             'bukvaKey': layout.bukvaKey,
