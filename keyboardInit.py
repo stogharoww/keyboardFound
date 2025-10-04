@@ -33,6 +33,7 @@ class Cortages(CreatorBase):
 
 
 
+
     async def create_tuples(self): #палец - индекс
         left, right = self.split()
         abj_left = left.copy()
@@ -104,6 +105,12 @@ class Cortages(CreatorBase):
         await self.create_tuples()
         await self.process_bukva_index()
 
+        self.sym_to_finger = {}
+        for finger, key_ids in self.fingerKey.items():
+            for key_id in key_ids:
+                for sym in self.bukvaKey.get(key_id, []):
+                    self.sym_to_finger[sym] = finger
+
 
 def massiveList():
     matrix = [['41', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13'],
@@ -142,6 +149,10 @@ async def debugingFunction(layouts):
         for keyIndex in sorted(layout.bukvaKey.keys(), key=lambda x: int(x)):
             joined = " | ".join(layout.bukvaKey[keyIndex])
             print(f"Клавиша {keyIndex}: {joined}")
+        for k, v in layout["_sym_to_finger"].items():
+            if v == "rfi2":
+                print(k)
+
 
 async def keyInitializations():
     matrix, yaverty, vizov, qwerty, shtrafs = massiveList()
@@ -168,7 +179,8 @@ async def keyInitializations():
             'fingerKey': layout.fingerKey,
             'shtrafKey': layout.shtrafKey,
             'fingerShtraf': layout.fingerShtraf,
-            'modifierMap': layout.modifierMap
+            'modifierMap': layout.modifierMap,
+            '_sym_to_finger': layout.sym_to_finger
         }
         for layout in layouts
     }

@@ -247,87 +247,39 @@ class TextAnalyzer:
         last_hand = {"hand": "", "finger": "", "last_key_index": None}
 
         locally_count = 0
-        sym_to_key = layout.get("_sym_to_key")
-        sym_to_finger = layout.get("_sym_to_finger")
-        modifiers = layout.get("modifiers", set())
+        layout_name = layout.get("name", "Unknown")
 
         for i, ch in enumerate(text):
-            if ch in modifiers:
-                modifier_count += 1
-                locally_count += 1
-            else:
-                if sym_to_key is not None and sym_to_finger is not None:
-                    effort = self.shtraf_config["base_key_effort"]
-                    mod_info = layout.get("modifierMap", {}).get(ch, {})
-                    if ch.isupper() or mod_info.get("shift", False):
-                        effort += self.shtraf_config["shift_penalty"]
-                    if mod_info.get("alt", False):
-                        effort += self.shtraf_config["alt_penalty"]
-                    if mod_info.get("ctrl", False):
-                        effort += self.shtraf_config["ctrl_penalty"]
-                    effort += self.shtraf_config["combo_penalty"] * mod_info.get("combo", 0)
+            effort = self.cachedEffort(ch, layout_name)
+            finger = self.cachedSymbolFinger(ch, layout_name)
+            hand = finger[0] if finger else "r"
 
-                    finger = sym_to_finger.get(ch)
-                    hand = finger[0] if finger else "r"
+            total_load += effort
+            finger_stats[finger] = finger_stats.get(finger, 0) + 1
 
-                    if last_hand.get("hand") and last_hand.get("hand") != hand:
-                        effort += self.shtraf_config["hand_switch_penalty"]
-                    if finger and last_hand.get("finger") == finger:
-                        effort += self.shtraf_config["same_finger_penalty"]
-                    if finger and finger.endswith("pi"):
-                        effort += self.shtraf_config["weak_finger_penalty"]
+            if hand != last_hand.get("hand"):
+                hand_switches += 1
 
-                    prev_idx = last_hand.get("last_key_index")
-                    curr_idx = sym_to_key.get(ch)
-                    if prev_idx is None or curr_idx is None:
-                        last_hand["last_key_index"] = curr_idx
-                    else:
-                        try:
-                            dist = abs(int(curr_idx) - int(prev_idx))
-                            last_hand["last_key_index"] = curr_idx
-                            if dist > 3:
-                                effort += min(dist - 3, 5)
-                        except ValueError:
-                            last_hand["last_key_index"] = curr_idx
+            last_hand["hand"] = hand
+            last_hand["finger"] = finger
 
-                    last_hand["hand"] = hand
-                    last_hand["finger"] = finger
-
-                    total_load += effort
-                    f = last_hand.get("finger")
-                    finger_stats[f] = finger_stats.get(f, 0) + 1
-
-                    if hand != last_hand.get("hand"):
-                        hand_switches += 1
-
-                    locally_count += 1
-                else:
-                    effort, hand = self.calculateEffort(ch, layout, last_hand)
-                    total_load += effort
-                    f = last_hand.get("finger")
-                    finger_stats[f] = finger_stats.get(f, 0) + 1
-
-                    if hand != last_hand.get("hand"):
-                        hand_switches += 1
-                    locally_count += 1
-
+            locally_count += 1
             if locally_count >= batch:
                 with lock:
                     progress.update(locally_count)
                 locally_count = 0
 
-        # остаток
         if locally_count:
             with lock:
                 progress.update(locally_count)
 
-        print(f"✅ Завершён анализ: {layout.get('name')}")
+        print(f"✅ Завершён анализ: {layout_name}")
         return {
             "total_load": total_load,
             "finger_statistics": finger_stats,
             "hand_switches": hand_switches,
             "modifier_count": modifier_count,
-            "layout_name": layout.get("name", "Unknown")
+            "layout_name": layout_name
         }
 
     async def compareLayouts(self, text: str, layouts: dict) -> dict:
