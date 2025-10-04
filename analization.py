@@ -1,55 +1,93 @@
-from keyboardInit import keyInitializations
-import pandas as pd
 import asyncio
-import aiofiles
-
 import unicodedata
+from keyboardInit import keyInitializations
+from tqdm import tqdm
+import threading
+from functools import lru_cache
+from concurrent.futures import ProcessPoolExecutor
+import multiprocessing
 
 
 class TextAnalyzer:
-    def __init__(self):
-        """
-        хз пробел, тут что-то надо чисто чтобы заполнить и всё. Если будет нужно, используйте
-        """
+    def __init__(self,
+                 shtraf_config: dict | None = None,
+                 debug_mode: bool = False):
+        # 1) Конфиг штрафов
+        self.shtraf_config = shtraf_config or {
+            'base_key_effort':        1,
+            'shift_penalty':          2,
+            'alt_penalty':            3,
+            'ctrl_penalty':           4,
+            'combo_penalty':          5,
+            'same_finger_penalty':    1,
+            'hand_switch_penalty':    1,
+            'weak_finger_penalty':    1
+        }
+        self.debug_mode = debug_mode
+
+        # 2) Однократная асинхронная загрузка всех раскладок
+        self.layouts: dict[str, dict] = {}
+        #asyncio.run(self.keybsInits())
 
     async def keybsInits(self):
+        """Загружает словари раскладок через keyInitializations()."""
         self.layouts = await keyInitializations()
-
+        for name, lay in list(self.layouts.items()):
+            lay.setdefault("name", name)
+            # normalize bukvaKey symbols, build fast maps
+            bukva = lay.get("bukvaKey", {})
+            finger_map = lay.get("fingerKey", {})
+            sym_to_key = {}
+            for key_idx, syms in bukva.items():
+                for s in syms:
+                    s_n = unicodedata.normalize("NFC", s)
+                    sym_to_key[s_n] = key_idx
+            sym_to_finger = {}
+            for finger, keys in finger_map.items():
+                for k in keys:
+                    for sym, key in sym_to_key.items():
+                        if key == k:
+                            sym_to_finger[sym] = finger
+            lay["_sym_to_key"] = sym_to_key
+            lay["_sym_to_finger"] = sym_to_finger
+            # normalize modifierMap and modifiers
+            if "modifierMap" in lay:
+                mm = {}
+                for k, v in lay["modifierMap"].items():
+                    mm[unicodedata.normalize("NFC", k)] = v
+                lay["modifierMap"] = mm
+            if "modifiers" in lay:
+                lay["modifiers"] = set(unicodedata.normalize("NFC", m) for m in lay.get("modifiers", []))
 
     def getSymbolFinger(self, char: str, layout=None) -> str | None:
         """
         Определяет, каким пальцем нажимается символ.
-        :param char: анализируемый символ
-        :param layout: словарь раскладки, имя раскладки или None
-        :return: строка с идентификатором пальца (например, 'lfi2') или None
+        Сигнатура сохранена.
         """
-        s = unicodedata.normalize("NFC", str(char))
+        s = unicodedata.normalize("NFC", char)
 
-        # Подготовка итератора раскладок
+        # Выбираем, по каким раскладкам искать
         if isinstance(layout, dict):
-            layouts_iter = (("custom", layout),)
+            layouts_iter = [("custom", layout)]
+        elif isinstance(layout, str):
+            layouts_iter = [(layout, self.layouts.get(layout, {}))]
         else:
-            all_layouts = getattr(self, "layouts", {}) or {}
-            if isinstance(layout, str):
-                if layout not in all_layouts:
-                    return None
-                layouts_iter = ((layout, all_layouts[layout]),)
-            else:
-                wanted = ("qwerty", "vizov", "yaverty")
-                layouts_iter = ((name, all_layouts[name]) for name in wanted if name in all_layouts)
+            wanted = ("qwerty", "vizov", "yaverty")
+            layouts_iter = [
+                (name, self.layouts[name])
+                for name in wanted if name in self.layouts
+            ]
 
-        # По каждой раскладке ищем индекс клавиши, потом палец
-        for layout_name, lay in layouts_iter:
-            if not lay:
-                continue
-            bukva = lay.get("bukvaKey", {}) or {}
+        for _, lay in layouts_iter:
+            bukva = lay.get("bukvaKey", {})
+            finger_map = lay.get("fingerKey", {})
 
+            # Шаг 1: найти key_idx, где есть наш символ
             found_key = None
             for key_idx, symbols in bukva.items():
                 for sym in symbols:
-                    sym_norm = unicodedata.normalize("NFC", str(sym))
-                    if sym_norm == s or sym_norm.lower() == s.lower() or sym_norm.upper() == s.upper():
-                        found_key = str(key_idx)
+                    if unicodedata.normalize("NFC", sym) == s:
+                        found_key = key_idx
                         break
                 if found_key is not None:
                     break
@@ -57,363 +95,268 @@ class TextAnalyzer:
             if found_key is None:
                 continue
 
-            finger_map = lay.get("fingerKey", {}) or {}
-            for finger, key_idxs in finger_map.items():
-                for k in key_idxs:
-                    if str(k) == found_key:
-                        return finger
-
-            # индекс найден в bukvaKey, но нет соответствия в fingerKey для этой раскладки
-            return None
+            # Шаг 2: из fingerKey найти пальцевую метку
+            for finger, keys in finger_map.items():
+                if found_key in keys:
+                    return finger
 
         return None
 
+    @lru_cache(maxsize=4096)
+    def cachedSymbolFinger(self, char: str, layout_name: str) -> str | None:
+        layout = self.layouts[layout_name]
+        return self.getSymbolFinger(char, layout)
+
     def getSumbolKey(self, char: str, layout: dict) -> str | None:
         """
-        Определяет, на какой клавише находится символ
-        :param char: анализируемый символ
-        :param layout: словарь раскладки с bukvaKey
-        :return: строка с индексом клавиши (например, '16') или None если не найдено
+        Определяет, на какой клавише находится символ.
+        Сигнатура сохранена.
         """
-        import unicodedata
+        s = unicodedata.normalize("NFC", char)
+        bukva = layout.get("bukvaKey", {})
 
-        s = unicodedata.normalize("NFC", str(char))
-
-        bukva = layout.get("bukvaKey", {}) or {}
-        # Перебираем пары key_idx -> symbols
         for key_idx, symbols in bukva.items():
             for sym in symbols:
-                sym_str = unicodedata.normalize("NFC", str(sym))
-
-                # Учесть варианты с модификаторами вида "shift+X" или "alt+X"
-                if "+" in sym_str and (sym_str.startswith("shift+") or sym_str.startswith("alt+")):
+                sym_str = unicodedata.normalize("NFC", sym)
+                if sym_str.startswith(("shift+", "alt+")):
                     candidate = sym_str.split("+", 1)[1]
                 else:
                     candidate = sym_str
-
-                # Сравниваем точь-в-точь и по регистру
-                if candidate == s or candidate.lower() == s.lower() or candidate.upper() == s.upper():
-                    return str(key_idx)
+                if candidate == s:
+                    return key_idx
 
         return None
 
     def getModifierShtraf(self, char: str, layout: dict) -> int:
         """
-        Проверяет, требует ли символ нажатия модификаторов (SHIFT, ALT, CTRL)
-        и возвращает соответствующий штраф.
-
-        :param char: анализируемый символ (например, 'A', '$', '€')
-        :param layout: словарь раскладки с ключом 'modifierMap'
-        :return: целое число — сумма штрафов за модификаторы
+        Считает штраф за модификаторы (Shift, Alt, Ctrl, Combo).
+        Сигнатура сохранена.
         """
-        # Если в раскладке нет информации о модификаторах, штраф 0
-        if 'modifierMap' not in layout:
-            return 0
-
+        mod_info = layout.get("modifierMap", {}).get(char, {})
         shtraf = 0
-        modifiers = layout['modifierMap']
 
-        # Штраф за SHIFT
-        if char.isupper():
-            shtraf += self.shtraf_config['shift_penalty']
-            print(f"Символ '{char}': SHIFT штраф +{self.shtraf_config['shift_penalty']}")
+        if char.isupper() or mod_info.get("shift", False):
+            shtraf += self.shtraf_config["shift_penalty"]
+        if mod_info.get("alt", False):
+            shtraf += self.shtraf_config["alt_penalty"]
+        if mod_info.get("ctrl", False):
+            shtraf += self.shtraf_config["ctrl_penalty"]
 
-        elif char in modifiers:
-            modifier_info = modifiers[char]
-
-            # Если символ явно требует SHIFT (например, '$', '%', '&')
-            if 'shift' in modifier_info and modifier_info['shift']:
-                shtraf += self.shtraf_config['shift_penalty']
-                print(f"Символ '{char}': SHIFT штраф +{self.shtraf_config['shift_penalty']}")
-
-            # Если символ требует ALT
-
-        if 'alt' in modifier_info and modifier_info['alt']:
-            shtraf += self.shtraf_config['alt_penalty']
-            print(f"Символ '{char}': ALT штраф +{self.shtraf_config['alt_penalty']}")
-
-            # Если символ требует CTRL
-        if 'ctrl' in modifier_info and modifier_info['ctrl']:
-            shtraf += self.shtraf_config['ctrl_penalty']
-            print(f"Символ '{char}': CTRL штраф +{self.shtraf_config['ctrl_penalty']}")
-
-            # Если символ требует комбинации модификаторов
-        if 'combo' in modifier_info:
-            combo_count = modifier_info['combo']
-            shtraf += self.shtraf_config['combo_penalty'] * combo_count
-            print(f"Символ '{char}': COMBO штраф +{self.shtraf_config['combo_penalty'] * combo_count}")
-
-        elif char.isdigit():
-            # Проверяем, требует ли цифра модификатора в данной раскладке
-            if char in modifiers:
-                modifier_info = modifiers[char]
-                if 'shift' in modifier_info:
-                    shtraf += self.shtraf_config['shift_penalty']
+        combo = mod_info.get("combo", 0)
+        shtraf += self.shtraf_config["combo_penalty"] * combo
 
         return shtraf
 
+
+
     def changeHand(self, current_hand: str, previous_hand: str) -> int:
         """
-        Сравнивает текущую и предыдущую руку, если r поменялось на l или наоборот, то +1 штраф.
-
-        :param current_hand: текущая рука ('l' - левая, 'r' - правая)
-        :param previous_hand: предыдущая рука ('l' - левая, 'r' - правая)
-        :return: штраф за смену руки (1 или 0)
+        Штраф за смену руки.
+        Сигнатура сохранена.
         """
-        # Если первый символ в тексте - штрафа нет
-        if not previous_hand:
+        if previous_hand and current_hand and previous_hand != current_hand:
+            return self.shtraf_config["hand_switch_penalty"]
+        return 0
+
+    def calculateDistanceShtraf(self, char: str,
+                                layout: dict,
+                                last_hand: dict) -> int:
+        """
+        Штраф за расстояние между клавишами по индексу.
+        Сигнатура сохранена.
+        """
+        prev_idx = last_hand.get("last_key_index")
+        curr_idx = self.getSumbolKey(char, layout)
+
+        # Если нет предыдущей или текущей позиции
+        if prev_idx is None or curr_idx is None:
+            last_hand["last_key_index"] = curr_idx
             return 0
 
-        # Если текущая рука не определена - штрафа нет
-        if not current_hand:
-            return 0
-
-        # приводим к нижнему регистру
-        prev_hand = previous_hand.lower().strip()
-        curr_hand = current_hand.lower().strip()
-
-        valid_hands = ['l', 'r']
-        if prev_hand not in valid_hands or curr_hand not in valid_hands:
-            return 0
-
-        # штраф за смену руки
-        if prev_hand != curr_hand:
-            return self.shtraf_config['hand_switch_penalty']
+        try:
+            dist = abs(int(curr_idx) - int(prev_idx))
+            last_hand["last_key_index"] = curr_idx
+            if dist > 3:
+                return min(dist - 3, 5)
+        except ValueError:
+            last_hand["last_key_index"] = curr_idx
 
         return 0
 
-    def calculateEffort(self, char: str, layout: dict, last_hand: dict) -> tuple[int, str]:
+    def calculateEffort(self, char: str,
+                        layout: dict,
+                        last_hand: dict) -> tuple[int, str]:
         """
-        Суммирует ВСЕ штрафы для одного символа и определяет текущую активную руку.
-
-        :param char: анализируемый символ
-        :param layout: словарь раскладки клавиатуры
-        :param last_hand: словарь с информацией о предыдущем состоянии {'hand': 'l', 'finger': 'lfi'}
-        :return: кортеж (общий_штраф, текущая_рука)
+        Суммирует ВСЕ штрафы для одного символа и возвращает
+        (общий_штраф, текущая_рука).
+        Сигнатура сохранена.
         """
-
         if not char.strip():
-            return 0, last_hand.get('hand', '')
+            return 0, last_hand.get("hand", "")
 
-        total_effort = 0
-        debug_info = []  # Для отладки
+        total = self.shtraf_config["base_key_effort"]
+        total += self.getModifierShtraf(char, layout)
+        layout_name = layout.get("name", "Unknown")
+        finger = self.cachedSymbolFinger(char, layout_name)
+        hand = finger[0] if finger else "r"
 
-        base_effort = self.shtraf_config['base_key_effort']
-        total_effort += base_effort
-        debug_info.append(f"База: +{base_effort}")
+        total += self.changeHand(hand, last_hand.get("hand", ""))
+        if finger and last_hand.get("finger") == finger:
+            total += self.shtraf_config["same_finger_penalty"]
+        if finger and finger.endswith("pi"):
+            total += self.shtraf_config["weak_finger_penalty"]
 
-        # ШТРАФ ЗА МОДИФИКАТОРЫ (Shift, Alt, Ctrl)
-        modifier_shtraf = self.getModifierShtraf(char, layout)
-        total_effort += modifier_shtraf
-        if modifier_shtraf > 0:
-            debug_info.append(f"Модификаторы: +{modifier_shtraf}")
+        total += self.calculateDistanceShtraf(char, layout, last_hand)
 
-        # ОПРЕДЕЛЯЕМ ТЕКУЩИЙ ПАЛЕЦ И РУКУ
-        current_finger = self.getSymbolFinger(char, layout)
-
-        if current_finger == 'unknown':
-            # Если палец не определен, используем правую руку по умолчанию
-            current_hand = 'r'
-            debug_info.append("Палец: неизвестен (рука по умолчанию: правая)")
-        else:
-            # Первая буква идентификатора пальца указывает на руку (l/r)
-            current_hand = current_finger[0] if current_finger else 'r'
-            debug_info.append(f"Палец: {current_finger}, Рука: {current_hand}")
-
-        # ШТРАФ ЗА СМЕНУ РУКИ
-        previous_hand = last_hand.get('hand', '')
-        hand_change_shtraf = self.changeHand(current_hand, previous_hand)
-        total_effort += hand_change_shtraf
-        if hand_change_shtraf > 0:
-            debug_info.append(f"Смена руки: +{hand_change_shtraf}")
-
-        # ШТРАФ ЗА ПОВТОРЕНИЕ ПАЛЬЦА
-        previous_finger = last_hand.get('finger', '')
-        same_finger_shtraf = 0
-
-        if (previous_finger and current_finger != 'unknown' and
-                previous_finger == current_finger):
-            same_finger_shtraf = self.shtraf_config['same_finger_penalty']
-            total_effort += same_finger_shtraf
-            debug_info.append(f"Повтор пальца: +{same_finger_shtraf}")
-
-        # ШТРАФ ЗА мизинцы
-        weak_finger_shtraf = 0
-        if current_finger.endswith('pi'):  # Мизинцы (pinky fingers)
-            weak_finger_shtraf = self.shtraf_config['weak_finger_penalty']
-            total_effort += weak_finger_shtraf
-            debug_info.append(f"Слабый палец: +{weak_finger_shtraf}")
-
-        # ШТРАФ ЗА РАССТОЯНИЕ (если есть данные о позициях клавиш)
-        distance_shtraf = self.calculateDistanceShtraf(char, layout, last_hand)
-        total_effort += distance_shtraf
-        if distance_shtraf > 0:
-            debug_info.append(f"Расстояние: +{distance_shtraf}")
-
-        # ОБНОВЛЯЕМ ИНФОРМАЦИЮ О ПОСЛЕДНЕЙ РУКЕ
-        last_hand['hand'] = current_hand
-        last_hand['finger'] = current_finger
-        last_hand['last_char'] = char  # Сохраняем последний символ для отладки
+        last_hand["hand"] = hand
+        last_hand["finger"] = finger
 
         if self.debug_mode:
-            print(f"'{char}': {total_effort} = {', '.join(debug_info)}")
+            print(f"{char!r}: total={total}, finger={finger}, hand={hand}")
 
-        return total_effort, current_hand
+        return total, hand
 
-    def calculateDistanceShtraf(self, char: str, layout: dict, last_hand: dict) -> int:
-
-        if 'keyPositions' not in layout or 'last_key_index' not in last_hand:
-            return 0
-
-        current_key_index = self.getSumbolKey(char, layout)
-        previous_key_index = last_hand.get('last_key_index')
-
-        if not previous_key_index or current_key_index == 'unknown':
-            last_hand['last_key_index'] = current_key_index
-            return 0
-
-        # если клавиши далеко друг от друга - штраф
-        try:
-            prev_idx = int(previous_key_index)
-            curr_idx = int(current_key_index)
-            distance = abs(curr_idx - prev_idx)
-
-            if distance > 3:  # Если клавиши сильно разнесены
-                last_hand['last_key_index'] = current_key_index
-                return min(distance - 3, 5)  # Максимум 5 штрафных очков
-        except (ValueError, TypeError):
-            pass
-
-        last_hand['last_key_index'] = current_key_index
-        return 0
-
-    def calculateEffortSymbol(self, char: str, layout: dict, last_hand: dict) -> tuple[int, str]:
+    def calculateEffortSymbol(self, char: str, layout: dict,
+                              last_hand: dict) -> tuple[int, str]:
         """
-        Суммирует все штрафы для символа:
-        - за клавишу
-        - за модификаторы
-        - за смену руки
-        :param char: анализируемый символ
-        :param layout: словарь раскладки
-        :param last_hand: словарь с последней активной рукой
-        :return: кортеж (общий штраф, текущая рука)
+        Alias для calculateEffort. Сигнатура сохранена.
         """
+        return self.calculateEffort(char, layout, last_hand)
 
-    def calculateEffortFinger(self, finger: str, layout: dict, calculateEffortSymb: dict):
+    def calculateEffortFinger(self, finger: str, layout: dict,
+                              calculateEffortSymb: dict) -> int:
         """
-        Суммирует все штрафы по конкретному пальцу
-        :param finger:
-        :param layout:
-        :param calculateEffortSymb:
-        :return:
+        Суммирует штрафы по конкретному пальцу.
+        Сигнатура сохранена.
         """
+        return sum(stats.get(finger, 0) for stats in calculateEffortSymb.values())
 
-    def analyzeText(self, text: str, layout: dict) -> dict:
-        """
-        Проходит по тексту и вычисляет:
-        - общую нагрузку
-        - нагрузку по пальцам
-        - количество смен рук
-        - количество модификаторов
-        :param text: строка текста для анализа
-        :param layout: словарь раскладки
-        :return: словарь с результатами анализа
-        """
+    @lru_cache(maxsize=4096)
+    def cachedEffort(self, char: str, layout_name: str) -> int:
+        layout = self.layouts[layout_name]
+        dummy_hand = {"hand": "", "finger": "", "last_key_index": None}
+        effort, _ = self.calculateEffort(char, layout, dummy_hand)
+        return effort
+
+    def analyzeTextSync(self, text: str, layout: dict, progress, lock, batch: int = 5000) -> dict:
+        print(f"🚀 Запуск анализа: {layout.get('name')}")
         total_load = 0
-        finger_statistics = {finger: 0 for finger in self.fingerKey.keys()}
+        finger_stats = {}
         hand_switches = 0
         modifier_count = 0
+        last_hand = {"hand": "", "finger": "", "last_key_index": None}
 
-        last_hand = None  # Хранит информацию о последней использованной руке
+        locally_count = 0
+        sym_to_key = layout.get("_sym_to_key")
+        sym_to_finger = layout.get("_sym_to_finger")
+        modifiers = layout.get("modifiers", set())
 
-        for char in text:
-            # Проверяем, является ли символ модификатором (например, Shift, Ctrl и т.д.)
-            if char in layout.get('modifiers', []):
+        for i, ch in enumerate(text):
+            if ch in modifiers:
                 modifier_count += 1
-                continue  # Пропускаем модификаторы при подсчете нагрузки
+                locally_count += 1
+            else:
+                if sym_to_key is not None and sym_to_finger is not None:
+                    effort = self.shtraf_config["base_key_effort"]
+                    mod_info = layout.get("modifierMap", {}).get(ch, {})
+                    if ch.isupper() or mod_info.get("shift", False):
+                        effort += self.shtraf_config["shift_penalty"]
+                    if mod_info.get("alt", False):
+                        effort += self.shtraf_config["alt_penalty"]
+                    if mod_info.get("ctrl", False):
+                        effort += self.shtraf_config["ctrl_penalty"]
+                    effort += self.shtraf_config["combo_penalty"] * mod_info.get("combo", 0)
 
-            # Находим соответствующий ключ для символа
-            for key, bukvas in self.bukvaKey.items():
-                if char in bukvas:
-                    total_load += 1  # Увеличиваем общую нагрузку
-                    finger_used = None
+                    finger = sym_to_finger.get(ch)
+                    hand = finger[0] if finger else "r"
 
-                    # Определяем, какой палец использован для данного символа
-                    for finger, keys in self.fingerKey.items():
-                        if key in keys:
-                            finger_statistics[finger] += 1
-                            finger_used = finger
-                            break
+                    if last_hand.get("hand") and last_hand.get("hand") != hand:
+                        effort += self.shtraf_config["hand_switch_penalty"]
+                    if finger and last_hand.get("finger") == finger:
+                        effort += self.shtraf_config["same_finger_penalty"]
+                    if finger and finger.endswith("pi"):
+                        effort += self.shtraf_config["weak_finger_penalty"]
 
-                    # Определяем, какая рука используется (левая или правая)
-                    current_hand = 'left' if finger_used in self.left_fingers else 'right'
+                    prev_idx = last_hand.get("last_key_index")
+                    curr_idx = sym_to_key.get(ch)
+                    if prev_idx is None or curr_idx is None:
+                        last_hand["last_key_index"] = curr_idx
+                    else:
+                        try:
+                            dist = abs(int(curr_idx) - int(prev_idx))
+                            last_hand["last_key_index"] = curr_idx
+                            if dist > 3:
+                                effort += min(dist - 3, 5)
+                        except ValueError:
+                            last_hand["last_key_index"] = curr_idx
 
-                    # Проверяем смену рук
-                    if last_hand and last_hand != current_hand:
+                    last_hand["hand"] = hand
+                    last_hand["finger"] = finger
+
+                    total_load += effort
+                    f = last_hand.get("finger")
+                    finger_stats[f] = finger_stats.get(f, 0) + 1
+
+                    if hand != last_hand.get("hand"):
                         hand_switches += 1
 
-                    last_hand = current_hand  # Обновляем последнюю использованную руку
+                    locally_count += 1
+                else:
+                    effort, hand = self.calculateEffort(ch, layout, last_hand)
+                    total_load += effort
+                    f = last_hand.get("finger")
+                    finger_stats[f] = finger_stats.get(f, 0) + 1
 
+                    if hand != last_hand.get("hand"):
+                        hand_switches += 1
+                    locally_count += 1
+
+            if locally_count >= batch:
+                with lock:
+                    progress.update(locally_count)
+                locally_count = 0
+
+        # остаток
+        if locally_count:
+            with lock:
+                progress.update(locally_count)
+
+        print(f"✅ Завершён анализ: {layout.get('name')}")
         return {
-            'total_load': total_load,
-            'finger_statistics': finger_statistics,
-            'hand_switches': hand_switches,
-            'modifier_count': modifier_count,
-            'layout_name': layout.get('name', 'Unknown Layout')  # Добавляем имя раскладки, если доступно
+            "total_load": total_load,
+            "finger_statistics": finger_stats,
+            "hand_switches": hand_switches,
+            "modifier_count": modifier_count,
+            "layout_name": layout.get("name", "Unknown")
         }
 
+    async def compareLayouts(self, text: str, layouts: dict) -> dict:
+        # подготовка общего прогресса
+        n_layouts = sum(1 for name in layouts if name != "ШТРАФЫ")
+        total_steps = len(text) * n_layouts
+        progress = tqdm(total=total_steps, desc="Общий прогресс", unit="симв")
+        lock = threading.Lock()
 
+        tasks = []
+        layout_names = []
+        for name, lay in layouts.items():
+            if name == "ШТРАФЫ":
+                continue
+            layout_names.append(name)
+            # запускаем синхронную функцию в отдельном потоке
+            tasks.append(asyncio.to_thread(self.analyzeTextSync, text, lay, progress, lock))
 
-    def compareLayouts(self, text: str, layouts: dict) -> dict:
-        """
-        Запускает анализы для каждой раскладки и текста и собирает сравнительную статистику,
-        собирает значения для каждого пальца.
-        Это финальная логическая функция, которая реально что-то считает
-        :param text: строка текста для анализа
-        :param layouts: словарь всех раскладок
-        :return: словарь с результатами по каждой раскладке
-        """
-        results = {}
-
-        for layout_name, layout_data in layouts.items():
-            matrix = layout_data['matrix']
-            symbols = layout_data['symbols']
-
-            # Создаем новый экземпляр Cortages для каждой раскладки
-            cortages_instance = Cortages(matrix, symbols, layout_name)
-            asyncio.run(cortages_instance.initialize())  # Инициализируем раскладку
-
-            # Статистика по пальцам
-            finger_statistics = {finger: 0 for finger in cortages_instance.fingerKey.keys()}
-
-            for char in text:
-                # Находим соответствующий ключ для символа
-                for key, bukvas in cortages_instance.bukvaKey.items():
-                    if char in bukvas:
-                        # Определяем, какой палец использован для данного символа
-                        for finger, keys in cortages_instance.fingerKey.items():
-                            if key in keys:
-                                finger_statistics[finger] += 1
-                                break
-
-            results[layout_name] = {
-                'finger_statistics': finger_statistics,
-                'total_chars': len(text),
-                'layout_name': layout_name
-            }
-
-        return results
-
+        results_raw = await asyncio.gather(*tasks)
+        progress.close()
+        return dict(zip(layout_names, results_raw))
 
     def returnResults(self, result: dict) -> None:
         """
-        Функция, которая создана исключительно только для вывода финальных результатов для графиков
-        выводит нагрузки по каждому пальцу
-        Форматирует и выводит результаты анализа:
-        - нагрузка по пальцам
-        - общая нагрузка
-        - модификаторы
-        - смены рук
-        :param result: словарь с результатами анализа
-        :return: None
+        Выводит результаты анализа.
+        Сигнатура сохранена.
         """
+        for name, stats in result.items():
+            print(f"=== Layout: {name} ===")
+            for k, v in stats.items():
+                print(f"{k}: {v}")
+            print()

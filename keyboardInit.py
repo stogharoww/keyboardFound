@@ -136,19 +136,12 @@ def massiveList():
 
     return matrix, yaverty, vizov, qwerty, shtrafs
 
-async def debugingFunction(keywordsInit):
-    await keywordsInit.bukva_index()
-    print("\n📋 Раскладки по клавишам:\n")
-    for keyIndex in sorted(keywordsInit.bukvaKey.keys(), key=lambda x: int(x)):
-        layouts = keywordsInit.bukvaKey[keyIndex]
-        print(f"Клавиша {keyIndex}:")
-        for layout_name in keywordsInit.layout_names:
-            if layout_name in layouts:
-                pair = layouts[layout_name]
-                joined = " | ".join(pair)
-                print(f"  {layout_name:<8} → {joined}")
-
-        print("-" * 40)
+async def debugingFunction(layouts):
+    for layout in layouts:
+        print(f"\n📋 Раскладка: {layout.layout_name}")
+        for keyIndex in sorted(layout.bukvaKey.keys(), key=lambda x: int(x)):
+            joined = " | ".join(layout.bukvaKey[keyIndex])
+            print(f"Клавиша {keyIndex}: {joined}")
 
 async def keyInitializations():
     matrix, yaverty, vizov, qwerty, shtrafs = massiveList()
@@ -164,16 +157,13 @@ async def keyInitializations():
     await asyncio.gather(*(layout.initialize() for layout in layouts))
 
     # Выводим результат
-    for layout in layouts:
-        print(f"\n📋 Раскладка: {layout.layout_name}")
-        for keyIndex in sorted(layout.bukvaKey.keys(), key=lambda x: int(x)):
-            joined = " | ".join(layout.bukvaKey[keyIndex])
-            print(f"Клавиша {keyIndex}: {joined}")
+    #await debugingFunction(layouts)
 
 
 
     return {
         layout.layout_name: {
+            'name' : layout.layout_name,
             'bukvaKey': layout.bukvaKey,
             'fingerKey': layout.fingerKey,
             'shtrafKey': layout.shtrafKey,
