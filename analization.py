@@ -271,7 +271,7 @@ class TextAnalyzer:
         """Сравнивает эффективность нескольких раскладок на заданном тексте"""
         n_layouts = sum(1 for name in layouts if name != "ШТРАФЫ")
         total_steps = len(text) * n_layouts
-        progress = tqdm(total=total_steps, desc="Общий прогресс", unit="симв")
+        progress = tqdm(total=total_steps, desc="Общий прогресс ", unit="симв")
         lock = threading.Lock()
 
         tasks = []
@@ -284,6 +284,7 @@ class TextAnalyzer:
 
         results_raw = await asyncio.gather(*tasks)
         progress.close()
+        print(text)
         return dict(zip(layout_names, results_raw))
 
     def returnResults(self, result: dict) -> None:
