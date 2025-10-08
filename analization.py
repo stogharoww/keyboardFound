@@ -130,34 +130,51 @@ class TextAnalyzer:
     def getModifierShtraf(self, char: str, layout: dict) -> int:
         """
         Считает штраф за модификаторы (Shift, Alt, Ctrl, Combo).
-        Сигнатура сохранена.
+        Использует карту modifierMap и учитывает спецсимволы.
         """
-        mod_info = layout.get("modifierMap", {}).get(char, {})
+        s = unicodedata.normalize("NFC", char)
+        mod_info = layout.get("modifierMap", {}).get(s, {})
         shtraf = 0
 
-        if char.isupper() or mod_info.get("shift", False):
+        # Проверка на Shift:
+        # 1) символ прописной буквы
+        # 2) символ явно требует shift в modifierMap
+        # 3) символ в верхнем регистре спецсимволов (!, ?, :, и т.п.)
+        if s.isupper() or mod_info.get("shift", False):
             shtraf += self.shtraf_config["shift_penalty"]
+
+        # Alt / AltGr
         if mod_info.get("alt", False):
             shtraf += self.shtraf_config["alt_penalty"]
+
+        # Ctrl
         if mod_info.get("ctrl", False):
             shtraf += self.shtraf_config["ctrl_penalty"]
 
+        # Комбинации (например, Shift+Alt)
         combo = mod_info.get("combo", 0)
-        shtraf += self.shtraf_config["combo_penalty"] * combo
+        if combo:
+            shtraf += self.shtraf_config["combo_penalty"] * combo
 
         return shtraf
 
-
-
-    def changeHand(self, current_hand: str, previous_hand: str) -> int:
+    def changeHand(self, current_finger: str | None, previous_finger: str | None) -> int:
         """
         Штраф за смену руки.
-        Сигнатура сохранена.
+        Определяет руку по префиксу 'lfi' / 'rfi'.
         """
-        if previous_hand and current_hand and previous_hand != current_hand:
-            return self.shtraf_config["hand_switch_penalty"]
-        return 0
+        if not current_finger or not previous_finger:
+            return 0
 
+        # Определяем руки по префиксу
+        current_hand = "L" if current_finger.startswith("lfi") else "R"
+        previous_hand = "L" if previous_finger.startswith("lfi") else "R"
+
+        if current_hand != previous_hand:
+            return self.shtraf_config["hand_switch_penalty"]
+
+        return 0
+ы
     def calculateDistanceShtraf(self, char: str,
                                 layout: dict,
                                 last_hand: dict) -> int:
