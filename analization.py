@@ -1,3 +1,9 @@
+"""
+Модуль для анализа эргономики раскладок клавиатуры.
+Содержит класс TextAnalyzer с методами для оценки усилий при наборе текста
+на различных раскладках клавиатуры.
+"""
+
 import asyncio
 import unicodedata
 from keyboardInit import keyInitializations
@@ -12,7 +18,7 @@ class TextAnalyzer:
     def __init__(self,
                  shtraf_config: dict | None = None,
                  debug_mode: bool = False):
-        # 1) Конфиг штрафов
+        """Инициализация анализатора с настройкой штрафов и режима отладки"""
         self.shtraf_config = shtraf_config or {
             'base_key_effort':        1,
             'shift_penalty':          2,
@@ -24,17 +30,13 @@ class TextAnalyzer:
             'weak_finger_penalty':    1
         }
         self.debug_mode = debug_mode
-
-        # 2) Однократная асинхронная загрузка всех раскладок
         self.layouts: dict[str, dict] = {}
-        #asyncio.run(self.keybsInits())
 
     async def keybsInits(self):
-        """Загружает словари раскладок через keyInitializations()."""
+        """Загрузка и предобработка раскладок клавиатуры"""
         self.layouts = await keyInitializations()
         for name, lay in list(self.layouts.items()):
             lay.setdefault("name", name)
-            # normalize bukvaKey symbols, build fast maps
             bukva = lay.get("bukvaKey", {})
             finger_map = lay.get("fingerKey", {})
             sym_to_key = {}
@@ -50,7 +52,6 @@ class TextAnalyzer:
                             sym_to_finger[sym] = finger
             lay["_sym_to_key"] = sym_to_key
             lay["_sym_to_finger"] = sym_to_finger
-            # normalize modifierMap and modifiers
             if "modifierMap" in lay:
                 mm = {}
                 for k, v in lay["modifierMap"].items():
@@ -60,13 +61,9 @@ class TextAnalyzer:
                 lay["modifiers"] = set(unicodedata.normalize("NFC", m) for m in lay.get("modifiers", []))
 
     def getSymbolFinger(self, char: str, layout=None) -> str | None:
-        """
-        Определяет, каким пальцем нажимается символ.
-        Сигнатура сохранена.
-        """
+        """Определяет палец для нажатия символа в заданной раскладке"""
         s = unicodedata.normalize("NFC", char)
 
-        # Выбираем, по каким раскладкам искать
         if isinstance(layout, dict):
             layouts_iter = [("custom", layout)]
         elif isinstance(layout, str):
@@ -82,7 +79,6 @@ class TextAnalyzer:
             bukva = lay.get("bukvaKey", {})
             finger_map = lay.get("fingerKey", {})
 
-            # Шаг 1: найти key_idx, где есть наш символ
             found_key = None
             for key_idx, symbols in bukva.items():
                 for sym in symbols:
@@ -95,7 +91,6 @@ class TextAnalyzer:
             if found_key is None:
                 continue
 
-            # Шаг 2: из fingerKey найти пальцевую метку
             for finger, keys in finger_map.items():
                 if found_key in keys:
                     return finger
@@ -104,14 +99,12 @@ class TextAnalyzer:
 
     @lru_cache(maxsize=4096)
     def cachedSymbolFinger(self, char: str, layout_name: str) -> str | None:
+        """Кэшированная версия определения пальца для символа"""
         layout = self.layouts[layout_name]
         return self.getSymbolFinger(char, layout)
 
     def getSumbolKey(self, char: str, layout: dict) -> str | None:
-        """
-        Определяет, на какой клавише находится символ.
-        Сигнатура сохранена.
-        """
+        """Определяет клавишу для символа в раскладке"""
         s = unicodedata.normalize("NFC", char)
         bukva = layout.get("bukvaKey", {})
 
@@ -128,30 +121,20 @@ class TextAnalyzer:
         return None
 
     def getModifierShtraf(self, char: str, layout: dict) -> int:
-        """
-        Считает штраф за модификаторы (Shift, Alt, Ctrl, Combo).
-        Использует карту modifierMap и учитывает спецсимволы.
-        """
+        """Рассчитывает штраф за использование модификаторов"""
         s = unicodedata.normalize("NFC", char)
         mod_info = layout.get("modifierMap", {}).get(s, {})
         shtraf = 0
 
-        # Проверка на Shift:
-        # 1) символ прописной буквы
-        # 2) символ явно требует shift в modifierMap
-        # 3) символ в верхнем регистре спецсимволов (!, ?, :, и т.п.)
         if s.isupper() or mod_info.get("shift", False):
             shtraf += self.shtraf_config["shift_penalty"]
 
-        # Alt / AltGr
         if mod_info.get("alt", False):
             shtraf += self.shtraf_config["alt_penalty"]
 
-        # Ctrl
         if mod_info.get("ctrl", False):
             shtraf += self.shtraf_config["ctrl_penalty"]
 
-        # Комбинации (например, Shift+Alt)
         combo = mod_info.get("combo", 0)
         if combo:
             shtraf += self.shtraf_config["combo_penalty"] * combo
@@ -159,14 +142,10 @@ class TextAnalyzer:
         return shtraf
 
     def changeHand(self, current_finger: str | None, previous_finger: str | None) -> int:
-        """
-        Штраф за смену руки.
-        Определяет руку по префиксу 'lfi' / 'rfi'.
-        """
+        """Рассчитывает штраф за смену руки при наборе"""
         if not current_finger or not previous_finger:
             return 0
 
-        # Определяем руки по префиксу
         current_hand = "L" if current_finger.startswith("lfi") else "R"
         previous_hand = "L" if previous_finger.startswith("lfi") else "R"
 
@@ -174,18 +153,14 @@ class TextAnalyzer:
             return self.shtraf_config["hand_switch_penalty"]
 
         return 0
-ы
+
     def calculateDistanceShtraf(self, char: str,
                                 layout: dict,
                                 last_hand: dict) -> int:
-        """
-        Штраф за расстояние между клавишами по индексу.
-        Сигнатура сохранена.
-        """
+        """Рассчитывает штраф за расстояние между последовательными клавишами"""
         prev_idx = last_hand.get("last_key_index")
         curr_idx = self.getSumbolKey(char, layout)
 
-        # Если нет предыдущей или текущей позиции
         if prev_idx is None or curr_idx is None:
             last_hand["last_key_index"] = curr_idx
             return 0
@@ -203,11 +178,7 @@ class TextAnalyzer:
     def calculateEffort(self, char: str,
                         layout: dict,
                         last_hand: dict) -> tuple[int, str]:
-        """
-        Суммирует ВСЕ штрафы для одного символа и возвращает
-        (общий_штраф, текущая_рука).
-        Сигнатура сохранена.
-        """
+        """Суммирует все штрафы для символа и возвращает общее усилие и руку"""
         if not char.strip():
             return 0, last_hand.get("hand", "")
 
@@ -235,27 +206,24 @@ class TextAnalyzer:
 
     def calculateEffortSymbol(self, char: str, layout: dict,
                               last_hand: dict) -> tuple[int, str]:
-        """
-        Alias для calculateEffort. Сигнатура сохранена.
-        """
+        """Алиас для calculateEffort с сохранением сигнатуры"""
         return self.calculateEffort(char, layout, last_hand)
 
     def calculateEffortFinger(self, finger: str, layout: dict,
                               calculateEffortSymb: dict) -> int:
-        """
-        Суммирует штрафы по конкретному пальцу.
-        Сигнатура сохранена.
-        """
+        """Суммирует штрафы по конкретному пальцу"""
         return sum(stats.get(finger, 0) for stats in calculateEffortSymb.values())
 
     @lru_cache(maxsize=4096)
     def cachedEffort(self, char: str, layout_name: str) -> int:
+        """Кэшированная версия расчета усилий для символа"""
         layout = self.layouts[layout_name]
         dummy_hand = {"hand": "", "finger": "", "last_key_index": None}
         effort, _ = self.calculateEffort(char, layout, dummy_hand)
         return effort
 
     def analyzeTextSync(self, text: str, layout: dict, progress, lock, batch: int = 5000) -> dict:
+        """Синхронный анализ текста для одной раскладки с прогресс-баром"""
         print(f"🚀 Запуск анализа: {layout.get('name')}")
         total_load = 0
         finger_stats = {}
@@ -300,7 +268,7 @@ class TextAnalyzer:
         }
 
     async def compareLayouts(self, text: str, layouts: dict) -> dict:
-        # подготовка общего прогресса
+        """Сравнивает эффективность нескольких раскладок на заданном тексте"""
         n_layouts = sum(1 for name in layouts if name != "ШТРАФЫ")
         total_steps = len(text) * n_layouts
         progress = tqdm(total=total_steps, desc="Общий прогресс", unit="симв")
@@ -312,7 +280,6 @@ class TextAnalyzer:
             if name == "ШТРАФЫ":
                 continue
             layout_names.append(name)
-            # запускаем синхронную функцию в отдельном потоке
             tasks.append(asyncio.to_thread(self.analyzeTextSync, text, lay, progress, lock))
 
         results_raw = await asyncio.gather(*tasks)
@@ -320,10 +287,7 @@ class TextAnalyzer:
         return dict(zip(layout_names, results_raw))
 
     def returnResults(self, result: dict) -> None:
-        """
-        Выводит результаты анализа.
-        Сигнатура сохранена.
-        """
+        """Выводит результаты сравнительного анализа раскладок"""
         for name, stats in result.items():
             print(f"=== Layout: {name} ===")
             for k, v in stats.items():
