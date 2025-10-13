@@ -1,30 +1,38 @@
-import numpy as np
-import matplotlib as plt
 import asyncio
-import keyboardInit as keyb #структура данных раскладок
+import keyboardInit as keyb
 import analization
 import unicodedata
 
 
 async def main():
-    layouts = await keyb.keyInitializations()
-    #print(layouts)
     textFile = "data/voina-i-mir.txt"
     csvFile = "data/sortchbukw.csv"
-    digrams = "data/digramms.txt"
+    digramsFile = "data/digramms.txt"
 
-    #algorithm = analization.TextAnalyzer()
-    #await algorithm.importFromFiles()
-    text, digrams, csvText = await keyb.importFromFiles(textFile, digrams, csvFile)
+    # Загружаем данные
+    text, digrams, csvText = await keyb.importFromFiles(textFile, digramsFile, csvFile)
 
-    digrams = unicodedata.normalize("NFC", text)
+    # Для анализа используем текст (или биграммы, если нужно)
+    # digrams = unicodedata.normalize("NFC", "".join(digrams))
+    text = unicodedata.normalize("NFC", "".join(digrams))
+
     analyzer = analization.TextAnalyzer(debug_mode=False)
     await analyzer.keybsInits()
-    result = await analyzer.compareLayouts(digrams, analyzer.layouts)
-    analyzer.returnResults(result)
+
+    # Запускаем сравнение раскладок
+    result = await analyzer.compareLayouts(text, analyzer.layouts)
+    structured = analyzer.returnResults(result)
+
+    # 🔍 Выводим результат
+    for layout in structured:
+        print(f"\n📋 Раскладка: {layout['layout_name']}")
+        print(f"🔹 Общая нагрузка: {layout['total_load']}")
+        print(f"🔹 Переключений рук: {layout['hand_switches']}")
+        print(f"🔹 Модификаторов: {layout['modifier_count']}")
+        print("🔹 Статистика по пальцам:")
+        for finger, count in layout['finger_statistics'].items():
+            print(f"   {finger or 'None'}: {count}")
 
 
 if __name__ == '__main__':
     asyncio.run(main())
-
-
