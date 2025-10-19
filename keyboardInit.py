@@ -8,12 +8,11 @@ import aiofiles
 import pandas as pd
 
 class CreatorBase:
-    """Базовый класс для разделения клавиш клавиатуры на правую и левую руку"""
+    """Класс, разделяющий клавиши на правую и левую руку"""
     def __init__(self, matrix):
         self.matrix = matrix
 
     def split(self):
-        """Разделяет матрицу клавиш на левую и правую части"""
         left = []
         right = []
         for i, row in enumerate(self.matrix):
@@ -25,40 +24,54 @@ class CreatorBase:
                 right.append(row[5:])
         return left, right
 
+
 class Cortages(CreatorBase):
-    """Класс для создания структур данных раскладки клавиатуры"""
     def __init__(self, matrix, symbols, layout_name):
-        super().__init__(matrix)
         self.matrix = matrix
         self.symbols = symbols
         self.layout_name = layout_name
-        self.fingerKey = {}
-        self.bukvaKey = {}
-        self.bukvaFinger = {}
+
+        self.fingerKey = {}     # палец → индексы
+        self.bukvaKey = {}      # индекс → символы
+        self.bukvaFinger = {}   # символ → палец
         self.shtrafKey = {}
         self.fingerShtraf = {}
+        self.sym_to_finger = {}
+        self.modifierMap = {}
 
     async def create_tuples(self):
-        """Создает mapping пальцев к индексам клавиш"""
+        """Формируем карту пальцев"""
         left, right = self.split()
         abj_left = left.copy()
         abj_left[0] = abj_left[0][1:]
-        self.fingerKey["lfi5"] = ('41', '02', '16', '30', '44')
-        self.fingerKey["lfi4"] = tuple(row[1] for row in abj_left)
-        self.fingerKey["lfi3"] = tuple(row[2] for row in abj_left)
-        self.fingerKey["lfi2"] = tuple(row[i] for row in abj_left for i in (3, 4))
 
-        self.fingerKey["rfi2"] = tuple(row[i] for row in right for i in (3, 4))
-        self.fingerKey["rfi3"] = tuple(row[2] for row in right)
-        self.fingerKey["rfi4"] = tuple(row[3] for row in right)
+        # Левая рука
+        self.fingerKey["lfi5"] = ('41', '02', '16', '30', '44')
+        self.fingerKey["lfi4"] = tuple(row[1] for row in abj_left if len(row) > 1)
+        self.fingerKey["lfi3"] = tuple(row[2] for row in abj_left if len(row) > 2)
+        self.fingerKey["lfi2"] = tuple(idx for row in abj_left for idx in row[3:5] if len(row) >= 5)
+
+        # Правая рука
+        self.fingerKey["rfi2"] = tuple(idx for row in right for idx in row[3:5] if len(row) >= 5)
+        self.fingerKey["rfi3"] = tuple(row[2] for row in right if len(row) > 2)
+        self.fingerKey["rfi4"] = tuple(row[3] for row in right if len(row) > 3)
         self.fingerKey["rfi5"] = ('11', '12', '13', '25', '26', '27', '43', '39', '40', '53')
 
+        self.fingerKey["lfi2"] += ('21', '22')  # н, г
+        self.fingerKey["lfi3"] += ('35', '36')  # р, о
+        self.fingerKey["rfi2"] += ('49', '50')  # т, ь
+        self.fingerKey["lfi5"] += ('2',)  # 1
+        self.fingerKey["rfi5"] += ('7', '8')  # 6, 7
+
+        # Модификаторы
         self.fingerKey["lfi1"] = ('SHIFT42', 'ALT56')
+
         await asyncio.sleep(0)
 
     async def process_bukva_index(self):
-        """Обрабатывает символы и создает mapping символов к клавишам и модификаторам"""
+        """Формируем карту индекс → символы"""
         self.modifierMap = {}
+
         for row_idx, row in enumerate(self.symbols):
             pointer = 0
             last_key = None
@@ -69,6 +82,7 @@ class Cortages(CreatorBase):
 
                 idx = self.matrix[row_idx][pointer]
 
+                # обычный символ
                 if not tok.startswith(('shift+', 'alt+')):
                     self.bukvaKey.setdefault(idx, [])
                     symbols = [tok, tok.upper()] if tok.islower() else [tok]
@@ -80,6 +94,7 @@ class Cortages(CreatorBase):
                     pointer += 1
                     continue
 
+                # shift
                 if tok.startswith('shift+'):
                     sym = tok.split('+', 1)[1]
                     self.bukvaKey.setdefault(last_key, [])
@@ -88,6 +103,8 @@ class Cortages(CreatorBase):
                         self.modifierMap[sym] = {'shift': True, 'alt': False}
                     continue
 
+
+                # alt
                 if tok.startswith('alt+'):
                     sym = tok.split('+', 1)[1]
                     pair = [sym, sym.upper()] if sym.islower() else [sym]
@@ -97,74 +114,112 @@ class Cortages(CreatorBase):
                             self.bukvaKey[last_key].append(s)
                             self.modifierMap[s] = {'shift': False, 'alt': True}
                     continue
+
         await asyncio.sleep(0)
 
     async def initialize(self):
-        """Основной метод инициализации раскладки"""
         await self.create_tuples()
         await self.process_bukva_index()
+
+        # Символ → палец
         self.sym_to_finger = {}
         for finger, key_ids in self.fingerKey.items():
             for key_id in key_ids:
                 for sym in self.bukvaKey.get(key_id, []):
                     self.sym_to_finger[sym] = finger
 
+
 def massiveList():
-    """Создает тестовые данные матриц и раскладок клавиатуры"""
-    matrix = [['41', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13'],
-              ['16', '17', '18', '19', '20', '21', '22', '23', '24', '25', '26', '27', '43'],
-              ['30', '31', '32', '33', '34', '35', '36', '37', '38', '39', '40'],
-              ['44', '45', '46', '47', '48', '49', '50', '51', '52', '53']]
+    matrix = [
+        ['41', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13'],
+        ['16', '17', '18', '19', '20', '21', '22', '23', '24', '25', '26', '27', '43'],
+        ['30', '31', '32', '33', '34', '35', '36', '37', '38', '39', '40'],
+        ['44', '45', '46', '47', '48', '49', '50', '51', '52', '53']
+    ]
 
-    yaverty = [['ю', '1', 'shift+!', '2', 'shift+@', '3', 'shift+ё', '4', 'shift+Ё', '5', 'shift+ъ',
-                '6', 'shift+ъ', '7', 'shift+&', '8', 'shift+*', '9', 'shift+(', '0', 'shift+)', '-', 'shift+_', 'ч'],
-               ['я', 'в', 'е', 'р', 'т', 'ы', 'у', 'и', 'о', 'п', 'ш', 'щ', 'э'],
-               ['а', 'с', 'д', 'ф', 'г', 'х', 'й', 'к', 'л', ';', 'shift+:', '--', 'shift+"'],
-               ['з', 'ь', 'ц', 'ж', 'б', 'н', 'м', ',', 'shift+<', '.', 'shift+>', '/', 'shift+?']]
+    # раскладки
+    yaverty = [
+        ['ю', '1', 'shift+!', '2', 'shift+@', '3', 'shift+ё', '4', 'shift+Ё', '5', 'shift+ъ',
+         '6', 'shift+ъ', '7', 'shift+&', '8', 'shift+*', '9', 'shift+(', '0', 'shift+)', '-', 'shift+_', 'ч'],
+        ['я', 'в', 'е', 'р', 'т', 'ы', 'у', 'и', 'о', 'п', 'ш', 'щ', 'э'],
+        ['а', 'с', 'д', 'ф', 'г', 'х', 'й', 'к', 'л', ';', 'shift+:', '--', 'shift+"'],
+        ['з', 'ь', 'ц', 'ж', 'б', 'н', 'м', ',', 'shift+<', '.', 'shift+>', '/', 'shift+?']
+    ]
 
-    vizov = [['ю', 'ё', '7', 'shift+[', '5', 'shift+{', '3', 'shift+}', '1', 'shift+(', '9', 'shift+=', '0',
-              'shift+*', '2', 'shift+)', '4', 'shift++', '6', 'shift+]', '8', 'shift+!', 'щ'],
-             ['б', 'ы', 'о', 'у', 'alt+ю', 'ь', 'ё', 'л', 'д', 'я', 'г', 'ж', 'ц'],
-             ['ъ', 'ч', 'alt+ц', 'и', 'е', 'alt+э', 'а', ',', 'shift+;', '.', 'shift+:', 'н', 'alt+щ'],
-             ['т', 'alt+ъ', 'с', 'в', 'з', 'ш', 'х', 'й', 'к', '_', 'shift+-', 'э', 'р']]
+    vizov = [
+        ['ю', 'ё', '7', 'shift+[', '5', 'shift+{', '3', 'shift+}', '1', 'shift+(', '9', 'shift+=', '0',
+         'shift+*', '2', 'shift+)', '4', 'shift++', '6', 'shift+]', '8', 'shift+!', 'щ'],
+        ['б', 'ы', 'о', 'у', 'alt+ю', 'ь', 'ё', 'л', 'д', 'я', 'г', 'ж', 'ц'],
+        ['ъ', 'ч', 'alt+ц', 'и', 'е', 'alt+э', 'а', ',', 'shift+;', '.', 'shift+:', 'н', 'alt+щ'],
+        ['т', 'alt+ъ', 'с', 'в', 'з', 'ш', 'х', 'й', 'к', '_', 'shift+-', 'э', 'р']
+    ]
 
-    qwerty = [['ё', '1', 'shift+!', '2', 'shift+"', '3', 'shift+№', '4', 'shift+;', '5', 'shift+%', '6', 'shift+:', '7',
-               'shift+?', '8', 'shift+*', '9', 'shift+(', '0', 'shift+)', '-', 'shift+_', '=', 'shift++'],
-              ['й', 'ц', 'у', 'к', 'е', 'н', 'г', 'ш', 'щ', 'з', 'х', 'ъ'],
-              ['ф', 'ы', 'в', 'а', 'п', 'р', 'о', 'л', 'д', 'ж', 'э'],
-              ['я', 'ч', 'с', 'м', 'и', 'т', 'ь', 'б', 'ю', '.']]
+    qwerty = [
+        ['ё', '1', 'shift+!', '2', 'shift+"', '3', 'shift+№', '4', 'shift+;', '5', 'shift+%', '6', 'shift+:', '7',
+         'shift+?', '8', 'shift+*', '9', 'shift+(', '0', 'shift+)', '-', 'shift+_', '=', 'shift++'],
+        ['й', 'ц', 'у', 'к', 'е', 'н', 'г', 'ш', 'щ', 'з', 'х', 'ъ'],
+        ['ф', 'ы', 'в', 'а', 'п', 'р', 'о', 'л', 'д', 'ж', 'э'],
+        ['я', 'ч', 'с', 'м', 'и', 'т', 'ь', 'б', 'ю', '.']
+    ]
 
-    shtrafs = [['6', '5', '4', '4', '4', '4', '4', '4', '4', '4', '4', '5', '6'],
-              ['3', '2', '2', '2', '2', '2', '2', '2', '2', '2', '3', '5', '6'],
-              ['0', '0', '0', '0', '1', '1', '0', '0', '0', '0', '1'],
-              ['2', '2', '2', '2', '3', '3', '2', '2', '2', '2']]
+    shtrafs = [
+        ['6', '5', '4', '4', '4', '4', '4', '4', '4', '4', '4', '5', '6'],
+        ['3', '2', '2', '2', '2', '2', '2', '2', '2', '2', '3', '5', '6'],
+        ['0', '0', '0', '0', '1', '1', '0', '0', '0', '0', '1'],
+        ['2', '2', '2', '2', '3', '3', '2', '2', '2', '2']
+    ]
 
     return matrix, yaverty, vizov, qwerty, shtrafs
 
+
 async def debugingFunction(layouts):
-    """Функция отладки для вывода информации о раскладках"""
     for layout in layouts:
         print(f"\n📋 Раскладка: {layout.layout_name}")
+
+        # Проверяем символы без пальца
+        for sym, finger in layout.sym_to_finger.items():
+            if finger is None:
+                print(f"❗️ {sym} не имеет пальца")
+
+        # Выводим все клавиши и символы на них
         for keyIndex in sorted(layout.bukvaKey.keys(), key=lambda x: int(x)):
             joined = " | ".join(layout.bukvaKey[keyIndex])
             print(f"Клавиша {keyIndex}: {joined}")
-        for k, v in layout["_sym_to_finger"].items():
-            if v == "rfi2":
-                print(k)
+
+        # Символы, назначенные на rfi2
+        for sym, finger in layout.sym_to_finger.items():
+            if finger == "rfi2":
+                print(f"👉 {sym} назначен на rfi2")
+
 
 async def keyInitializations():
-    """Основная функция инициализации всех раскладок клавиатуры"""
     matrix, yaverty, vizov, qwerty, shtrafs = massiveList()
+
     layouts = [
         Cortages(matrix, qwerty, 'qwerty'),
         Cortages(matrix, vizov, 'vizov'),
         Cortages(matrix, yaverty, 'yaverty'),
         Cortages(matrix, shtrafs, 'ШТРАФЫ')
     ]
+
+
+    # Асинхронно создаём кортежи и обрабатываем символы
     await asyncio.gather(*(layout.initialize() for layout in layouts))
+
+    # Проверка покрытия индексов
+    for layout in layouts:
+        all_bukva = set(layout.bukvaKey.keys())
+        all_fingers = {idx for ids in layout.fingerKey.values() for idx in ids}
+        missing = all_bukva - all_fingers
+        if missing:
+            print(f"❗️ В {layout.layout_name} индексы без пальцев: {missing}")
+
+    # Отладочный вывод
+    await debugingFunction(layouts)
+
     return {
         layout.layout_name: {
-            'name' : layout.layout_name,
+            'name': layout.layout_name,
             'bukvaKey': layout.bukvaKey,
             'fingerKey': layout.fingerKey,
             'shtrafKey': layout.shtrafKey,
@@ -175,12 +230,15 @@ async def keyInitializations():
         for layout in layouts
     }
 
+
 async def importFromFiles(textFile, digramsFile, csvFile):
-    """Асинхронная загрузка данных из файлов для анализа"""
     async with aiofiles.open(textFile, "r", encoding="utf-8") as f:
         text = await f.read()
+
     async with aiofiles.open(digramsFile, "r", encoding="utf-8") as f:
         lines = await f.readlines()
         digrams = [line.strip() for line in lines]
+
     csvText = pd.read_csv(csvFile, header=None, sep=",")
+
     return text, digrams, csvText
