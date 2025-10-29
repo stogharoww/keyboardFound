@@ -1,3 +1,8 @@
+"""
+Модуль для создания и инициализации раскладок клавиатуры.
+Содержит классы для разделения клавиш по рукам и создания структур данных раскладок.
+"""
+
 import asyncio
 import aiofiles
 import pandas as pd
@@ -98,6 +103,7 @@ class Cortages(CreatorBase):
                         self.modifierMap[sym] = {'shift': True, 'alt': False}
                     continue
 
+
                 # alt
                 if tok.startswith('alt+'):
                     sym = tok.split('+', 1)[1]
@@ -173,7 +179,7 @@ async def debugingFunction(layouts):
         # Проверяем символы без пальца
         for sym, finger in layout.sym_to_finger.items():
             if finger is None:
-                print(f"❗ {sym} не имеет пальца")
+                print(f"❗️ {sym} не имеет пальца")
 
         # Выводим все клавиши и символы на них
         for keyIndex in sorted(layout.bukvaKey.keys(), key=lambda x: int(x)):
@@ -196,6 +202,7 @@ async def keyInitializations():
         Cortages(matrix, shtrafs, 'ШТРАФЫ')
     ]
 
+
     # Асинхронно создаём кортежи и обрабатываем символы
     await asyncio.gather(*(layout.initialize() for layout in layouts))
 
@@ -205,7 +212,7 @@ async def keyInitializations():
         all_fingers = {idx for ids in layout.fingerKey.values() for idx in ids}
         missing = all_bukva - all_fingers
         if missing:
-            print(f"❗ В {layout.layout_name} индексы без пальцев: {missing}")
+            print(f"❗️ В {layout.layout_name} индексы без пальцев: {missing}")
 
     # Отладочный вывод
     await debugingFunction(layouts)

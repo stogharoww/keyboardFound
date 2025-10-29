@@ -106,6 +106,7 @@ class TextAnalyzer:
         s = self._normalize(ch)
         shtraf = 0
 
+
         if mod_info.get("alt", False):
             shtraf += self.shtraf_config["alt_penalty"]
         if mod_info.get("ctrl", False):
@@ -214,6 +215,7 @@ class TextAnalyzer:
         progress.close()
         return results_raw
 
+
     def returnResults(self, results: list) -> list:
         """Формирует результаты в структурированном виде без вывода на экран"""
         structured = []
@@ -234,5 +236,3 @@ class TextAnalyzer:
                 "finger_statistics": finger_stats
             })
         return structured
-
-
