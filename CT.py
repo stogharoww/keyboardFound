@@ -8,6 +8,7 @@ import asyncio
 import keyboardInit as keyb
 import analization
 import unicodedata
+from Graphics import GraphicsAnalyzer   # 👈 добавляем импорт
 
 
 async def main():
@@ -19,7 +20,6 @@ async def main():
     text, digrams, csvText = await keyb.importFromFiles(textFile, digramsFile, csvFile)
 
     # Для анализа используем текст (или биграммы, если нужно)
-    # digrams = unicodedata.normalize("NFC", "".join(digrams))
     text = unicodedata.normalize("NFC", "".join(digrams))
 
     analyzer = analization.TextAnalyzer(debug_mode=False)
@@ -29,7 +29,7 @@ async def main():
     result = await analyzer.compareLayouts(text, analyzer.layouts)
     structured = analyzer.returnResults(result)
 
-    # 🔍 Выводим результат
+    # 🔍 Выводим результат в консоль
     for layout in structured:
         print(f"\n📋 Раскладка: {layout['layout_name']}")
         print(f"🔹 Общая нагрузка: {layout['total_load']}")
@@ -38,6 +38,10 @@ async def main():
         print("🔹 Статистика по пальцам:")
         for finger, count in layout['finger_statistics'].items():
             print(f"   {finger or 'None'}: {count}")
+
+    # 📊 Вызов построения графиков
+    graphics = GraphicsAnalyzer(analyzer.layouts)
+    graphics.renderAll(result)  # 👈 сразу все графики
 
 
 if __name__ == '__main__':

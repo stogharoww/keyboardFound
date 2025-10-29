@@ -4,8 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="1f747389-6c8c-448d-9d1d-ff6fc6f601a3" name="Changes" comment="Оптимизированная и отредактированная логика программы">
+    <list default="true" id="1f747389-6c8c-448d-9d1d-ff6fc6f601a3" name="Changes" comment="push">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/CT.py" beforeDir="false" afterPath="$PROJECT_DIR$/CT.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Graphics.py" beforeDir="false" afterPath="$PROJECT_DIR$/Graphics.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -20,8 +22,17 @@
     </option>
   </component>
   <component name="Git.Settings">
+    <option name="PUSH_TAGS">
+      <GitPushTagMode>
+        <option name="argument" value="--tags" />
+        <option name="title" value="All" />
+      </GitPushTagMode>
+    </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
     <option name="UPDATE_TYPE" value="REBASE" />
+  </component>
+  <component name="MarkdownSettingsMigration">
+    <option name="stateVersion" value="1" />
   </component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 4
@@ -34,20 +45,20 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;ASKED_ADD_EXTERNAL_FILES&quot;: &quot;true&quot;,
-    &quot;Python.CT.executor&quot;: &quot;Run&quot;,
-    &quot;Python.Lab_1 One and Two Histograms.executor&quot;: &quot;Run&quot;,
-    &quot;Python.analization.executor&quot;: &quot;Run&quot;,
-    &quot;Python.main.executor&quot;: &quot;Run&quot;,
-    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
-    &quot;last_opened_file_path&quot;: &quot;E:/Lab_1 One and Two Histograms.py&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;org.jetbrains.plugins.github.ui.GithubSettingsConfigurable&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ASKED_ADD_EXTERNAL_FILES": "true",
+    "Python.CT.executor": "Run",
+    "Python.Lab_1 One and Two Histograms.executor": "Run",
+    "Python.analization.executor": "Run",
+    "Python.main.executor": "Run",
+    "RunOnceActivity.OpenProjectViewOnStart": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "git-widget-placeholder": "master",
+    "last_opened_file_path": "E:/Lab_1 One and Two Histograms.py",
+    "settings.editor.selected.configurable": "vcs.Git"
   }
-}</component>
+}]]></component>
   <component name="RunManager">
     <configuration name="CT" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="keyboardFound" />
@@ -173,7 +184,15 @@
       <option name="project" value="LOCAL" />
       <updated>1760348949744</updated>
     </task>
-    <option name="localTasksCounter" value="11" />
+    <task id="LOCAL-00011" summary="push">
+      <option name="closed" value="true" />
+      <created>1761739854873</created>
+      <option name="number" value="00011" />
+      <option name="presentableId" value="LOCAL-00011" />
+      <option name="project" value="LOCAL" />
+      <updated>1761739854873</updated>
+    </task>
+    <option name="localTasksCounter" value="12" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -206,6 +225,7 @@
     <MESSAGE value="Изменения, нужен допил кода" />
     <MESSAGE value="Оптимизированный анализатор, но нужно доработать логику" />
     <MESSAGE value="Оптимизированная и отредактированная логика программы" />
-    <option name="LAST_COMMIT_MESSAGE" value="Оптимизированная и отредактированная логика программы" />
+    <MESSAGE value="push" />
+    <option name="LAST_COMMIT_MESSAGE" value="push" />
   </component>
 </project>
