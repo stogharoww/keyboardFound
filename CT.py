@@ -8,26 +8,19 @@ import asyncio
 import keyboardInit as keyb
 import analization
 import unicodedata
-from Graphics import GraphicsAnalyzer
-import argparse
-import json
+from Graphics import GraphicsAnalyzer   # 👈 добавляем импорт
+
 
 async def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--text", default="data/voina-i-mir.txt")
-    parser.add_argument("--csv", default="data/sortchbukw.csv")
-    parser.add_argument("--digrams", default="data/digramms.txt")
-    parser.add_argument("--use-digrams", action="store_true")
-    args = parser.parse_args()
+    textFile = "data/voina-i-mir.txt"
+    csvFile = "data/sortchbukw.csv"
+    digramsFile = "data/digramms.txt"
 
     # Загружаем данные
-    text, digrams, csvText = await keyb.importFromFiles(args.text, args.digrams, args.csv)
+    text, digrams, csvText = await keyb.importFromFiles(textFile, digramsFile, csvFile)
 
-    # Выбираем источник текста
-    if args.use_digrams:
-        text = unicodedata.normalize("NFC", "".join(digrams))
-    else:
-        text = unicodedata.normalize("NFC", text)
+    # Для анализа используем текст (или биграммы, если нужно)
+    text = unicodedata.normalize("NFC", "".join(digrams))
 
     analyzer = analization.TextAnalyzer(debug_mode=False)
     await analyzer.keybsInits()
@@ -46,13 +39,10 @@ async def main():
         for finger, count in layout['finger_statistics'].items():
             print(f"   {finger or 'None'}: {count}")
 
-    # 💾 Сохраняем результаты в JSON
-    with open("results.json", "w", encoding="utf-8") as f:
-        json.dump(structured, f, ensure_ascii=False, indent=2)
-
     # 📊 Вызов построения графиков
     graphics = GraphicsAnalyzer(analyzer.layouts)
-    graphics.renderAll(result)
+    graphics.renderAll(result)  # 👈 сразу все графики
+
 
 if __name__ == '__main__':
     asyncio.run(main())
