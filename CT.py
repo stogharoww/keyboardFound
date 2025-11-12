@@ -8,7 +8,7 @@ import asyncio
 import keyboardInit as keyb
 import analization
 import unicodedata
-from Graphics import GraphicsAnalyzer   # 👈 добавляем импорт
+from Graphics import GraphicsAnalyzer   
 
 
 async def main():
