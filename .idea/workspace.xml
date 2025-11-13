@@ -4,59 +4,55 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="1f747389-6c8c-448d-9d1d-ff6fc6f601a3" name="Changes" comment="графики">
+    <list default="true" id="37f5d3a0-b40c-48ff-baaa-79f8da0b0443" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/inspectionProfiles/profiles_settings.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/profiles_settings.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/keyboardFound.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/keyboardFound.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/CT.py" beforeDir="false" afterPath="$PROJECT_DIR$/CT.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Graphics.py" beforeDir="false" afterPath="$PROJECT_DIR$/Graphics.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/analization.py" beforeDir="false" afterPath="$PROJECT_DIR$/analization.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
-  <component name="FileTemplateManagerImpl">
-    <option name="RECENT_TEMPLATES">
-      <list>
-        <option value="Python Script" />
-      </list>
-    </option>
-  </component>
   <component name="Git.Settings">
-    <option name="PUSH_TAGS">
-      <GitPushTagMode>
-        <option name="argument" value="--tags" />
-        <option name="title" value="All" />
-      </GitPushTagMode>
+    <option name="RECENT_BRANCH_BY_REPOSITORY">
+      <map>
+        <entry key="$PROJECT_DIR$" value="main" />
+      </map>
     </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
-    <option name="UPDATE_TYPE" value="REBASE" />
   </component>
-  <component name="MarkdownSettingsMigration">
-    <option name="stateVersion" value="1" />
-  </component>
-  <component name="ProjectColorInfo">{
-  &quot;associatedIndex&quot;: 4
-}</component>
-  <component name="ProjectId" id="32kFrlW7rpSeFPlO4J3EMgNCTc6" />
-  <component name="ProjectLevelVcsManager" settingsEditedManually="true">
-    <ConfirmationsSetting value="2" id="Add" />
-  </component>
+  <component name="GitHubPullRequestSearchHistory"><![CDATA[{
+  "lastFilter": {
+    "state": "OPEN",
+    "assignee": "stogharoww"
+  }
+}]]></component>
+  <component name="GithubPullRequestsUISettings"><![CDATA[{
+  "selectedUrlAndAccountId": {
+    "url": "https://github.com/stogharoww/keyboardFound.git",
+    "accountId": "85d1583c-0246-4146-a253-e91343bc05f2"
+  }
+}]]></component>
+  <component name="ProjectColorInfo"><![CDATA[{
+  "associatedIndex": 1
+}]]></component>
+  <component name="ProjectId" id="35QR3fih3uZznRYxkD7zGOaV6Xw" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
-    "ASKED_ADD_EXTERNAL_FILES": "true",
     "Python.CT.executor": "Run",
-    "Python.Lab_1 One and Two Histograms.executor": "Run",
-    "Python.analization.executor": "Run",
-    "Python.main.executor": "Run",
-    "RunOnceActivity.OpenProjectViewOnStart": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
-    "git-widget-placeholder": "master",
-    "last_opened_file_path": "E:/Lab_1 One and Two Histograms.py",
-    "settings.editor.selected.configurable": "vcs.Git"
+    "RunOnceActivity.git.unshallow": "true",
+    "git-widget-placeholder": "master"
   }
 }]]></component>
   <component name="RunManager">
@@ -91,150 +87,18 @@
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-python-sdk-d68999036c7f-d3b881c8e49f-com.jetbrains.pycharm.community.sharedIndexes.bundled-PC-233.14475.56" />
+        <option value="bundled-python-sdk-f69e5c277ee4-cbfc7b97e6b2-com.jetbrains.pycharm.community.sharedIndexes.bundled-PC-252.27397.106" />
       </set>
     </attachedChunks>
   </component>
-  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
   <component name="TaskManager">
     <task active="true" id="Default" summary="Default task">
-      <changelist id="1f747389-6c8c-448d-9d1d-ff6fc6f601a3" name="Changes" comment="" />
-      <created>1757956864706</created>
+      <changelist id="37f5d3a0-b40c-48ff-baaa-79f8da0b0443" name="Changes" comment="" />
+      <created>1763040111204</created>
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
-      <updated>1757956864706</updated>
+      <updated>1763040111204</updated>
     </task>
-    <task id="LOCAL-00001" summary="Initial commit">
-      <option name="closed" value="true" />
-      <created>1758298315568</created>
-      <option name="number" value="00001" />
-      <option name="presentableId" value="LOCAL-00001" />
-      <option name="project" value="LOCAL" />
-      <updated>1758298315568</updated>
-    </task>
-    <task id="LOCAL-00002" summary="Initial commit">
-      <option name="closed" value="true" />
-      <created>1758316013007</created>
-      <option name="number" value="00002" />
-      <option name="presentableId" value="LOCAL-00002" />
-      <option name="project" value="LOCAL" />
-      <updated>1758316013007</updated>
-    </task>
-    <task id="LOCAL-00003" summary="Изменения!!!">
-      <option name="closed" value="true" />
-      <created>1758656387021</created>
-      <option name="number" value="00003" />
-      <option name="presentableId" value="LOCAL-00003" />
-      <option name="project" value="LOCAL" />
-      <updated>1758656387022</updated>
-    </task>
-    <task id="LOCAL-00004" summary="Изменения!!!">
-      <option name="closed" value="true" />
-      <created>1759092069701</created>
-      <option name="number" value="00004" />
-      <option name="presentableId" value="LOCAL-00004" />
-      <option name="project" value="LOCAL" />
-      <updated>1759092069701</updated>
-    </task>
-    <task id="LOCAL-00005" summary="Изменения, нужен допил кода">
-      <option name="closed" value="true" />
-      <created>1759092107784</created>
-      <option name="number" value="00005" />
-      <option name="presentableId" value="LOCAL-00005" />
-      <option name="project" value="LOCAL" />
-      <updated>1759092107784</updated>
-    </task>
-    <task id="LOCAL-00006" summary="Изменения, нужен допил кода">
-      <option name="closed" value="true" />
-      <created>1759092140542</created>
-      <option name="number" value="00006" />
-      <option name="presentableId" value="LOCAL-00006" />
-      <option name="project" value="LOCAL" />
-      <updated>1759092140542</updated>
-    </task>
-    <task id="LOCAL-00007" summary="Оптимизированный анализатор, но нужно доработать логику">
-      <option name="closed" value="true" />
-      <created>1759584727147</created>
-      <option name="number" value="00007" />
-      <option name="presentableId" value="LOCAL-00007" />
-      <option name="project" value="LOCAL" />
-      <updated>1759584727147</updated>
-    </task>
-    <task id="LOCAL-00008" summary="Оптимизированный анализатор, но нужно доработать логику">
-      <option name="closed" value="true" />
-      <created>1759586177360</created>
-      <option name="number" value="00008" />
-      <option name="presentableId" value="LOCAL-00008" />
-      <option name="project" value="LOCAL" />
-      <updated>1759586177360</updated>
-    </task>
-    <task id="LOCAL-00009" summary="Оптимизированный анализатор, но нужно доработать логику">
-      <option name="closed" value="true" />
-      <created>1759953254965</created>
-      <option name="number" value="00009" />
-      <option name="presentableId" value="LOCAL-00009" />
-      <option name="project" value="LOCAL" />
-      <updated>1759953254965</updated>
-    </task>
-    <task id="LOCAL-00010" summary="Оптимизированная и отредактированная логика программы">
-      <option name="closed" value="true" />
-      <created>1760348949744</created>
-      <option name="number" value="00010" />
-      <option name="presentableId" value="LOCAL-00010" />
-      <option name="project" value="LOCAL" />
-      <updated>1760348949744</updated>
-    </task>
-    <task id="LOCAL-00011" summary="push">
-      <option name="closed" value="true" />
-      <created>1761739854873</created>
-      <option name="number" value="00011" />
-      <option name="presentableId" value="LOCAL-00011" />
-      <option name="project" value="LOCAL" />
-      <updated>1761739854873</updated>
-    </task>
-    <task id="LOCAL-00012" summary="графики">
-      <option name="closed" value="true" />
-      <created>1761741290727</created>
-      <option name="number" value="00012" />
-      <option name="presentableId" value="LOCAL-00012" />
-      <option name="project" value="LOCAL" />
-      <updated>1761741290727</updated>
-    </task>
-    <option name="localTasksCounter" value="13" />
     <servers />
-  </component>
-  <component name="Vcs.Log.Tabs.Properties">
-    <option name="TAB_STATES">
-      <map>
-        <entry key="MAIN">
-          <value>
-            <State>
-              <option name="FILTERS">
-                <map>
-                  <entry key="branch">
-                    <value>
-                      <list>
-                        <option value="HEAD" />
-                      </list>
-                    </value>
-                  </entry>
-                </map>
-              </option>
-            </State>
-          </value>
-        </entry>
-      </map>
-    </option>
-  </component>
-  <component name="VcsManagerConfiguration">
-    <option name="ADD_EXTERNAL_FILES_SILENTLY" value="true" />
-    <MESSAGE value="Initial commit" />
-    <MESSAGE value="Изменения!!!" />
-    <MESSAGE value="Изменения, нужен допил кода" />
-    <MESSAGE value="Оптимизированный анализатор, но нужно доработать логику" />
-    <MESSAGE value="Оптимизированная и отредактированная логика программы" />
-    <MESSAGE value="push" />
-    <MESSAGE value="графики" />
-    <option name="LAST_COMMIT_MESSAGE" value="графики" />
   </component>
 </project>
