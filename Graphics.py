@@ -61,12 +61,19 @@ class GraphicsAnalyzer:
                 modifier_count = res["modifier_count"]
                 finger_stats = res["finger_statistics"]
                 word_stats = res.get("word_stats")
+                # Новые данные для круговых диаграмм слов
+                word_hand_stats = res.get("word_hand_stats", {})
             else:
-                if len(res) == 6:
+                if len(res) >= 7:
+                    layout_name, total_load, hand_switches, modifier_count, finger_stats, word_stats, word_hand_stats = res[
+                                                                                                                        :7]
+                elif len(res) == 6:
                     layout_name, total_load, hand_switches, modifier_count, finger_stats, word_stats = res
+                    word_hand_stats = {}
                 else:
                     layout_name, total_load, hand_switches, modifier_count, finger_stats = res
                     word_stats = None
+                    word_hand_stats = {}
 
             all_fingers = set(self.layouts[layout_name]["fingerKey"].keys())
             for f in all_fingers:
@@ -79,7 +86,8 @@ class GraphicsAnalyzer:
                 "hand_switches": hand_switches,
                 "modifier_count": modifier_count,
                 "finger_statistics": finger_stats,
-                "word_stats": word_stats
+                "word_stats": word_stats,
+                "word_hand_stats": word_hand_stats
             })
 
             all_layouts_data.append({
@@ -88,7 +96,8 @@ class GraphicsAnalyzer:
                 "total": total_load,
                 "hand_switches": hand_switches,
                 "modifier_count": modifier_count,
-                "word_stats": word_stats
+                "word_stats": word_stats,
+                "word_hand_stats": word_hand_stats
             })
 
         return structured, all_layouts_data
@@ -238,6 +247,155 @@ class GraphicsAnalyzer:
 
         # Скрываем пустые оси
         for idx in range(len(layouts_data), rows * cols):
+            row = idx // cols
+            col = idx % cols
+            if rows > 1 and cols > 1:
+                axes[row, col].set_visible(False)
+            else:
+                axes[idx].set_visible(False)
+
+        plt.tight_layout()
+        plt.subplots_adjust(top=0.9)
+        plt.show()
+
+    def _create_hand_pie_charts(self, structured_data: list, corpus_name: str):
+        """Круговые диаграммы: слова только левой рукой, только правой рукой, обе руки."""
+        n_layouts = len(structured_data)
+        if n_layouts == 0:
+            return
+
+        cols = min(2, n_layouts)
+        rows = (n_layouts + cols - 1) // cols
+
+        fig, axes = plt.subplots(rows, cols, figsize=(6 * cols, 6 * rows))
+        fig.suptitle(f'Круговые диаграммы распределения слов по рукам ({corpus_name})',
+                     fontsize=16, fontweight='bold')
+
+        if n_layouts == 1:
+            axes = np.array([axes])
+        if rows == 1 and cols == 1:
+            axes = np.array([axes])
+        elif rows == 1:
+            axes = axes.reshape(1, -1)
+        elif cols == 1:
+            axes = axes.reshape(-1, 1)
+
+        for idx, layout_data in enumerate(structured_data):
+            row = idx // cols
+            col = idx % cols
+            ax = axes[row, col] if rows > 1 and cols > 1 else axes[idx]
+
+            word_stats = layout_data.get("word_stats")
+            if not word_stats:
+                ax.set_visible(False)
+                continue
+
+            loads = [word_stats["left_only"], word_stats["right_only"], word_stats["both"]]
+            labels = ['Только левая рука', 'Только правая рука', 'Обе руки']
+            colors = ['#1f77b4', '#ff7f0e', '#2ca02c']
+
+            ax.pie(loads, labels=labels, autopct='%1.1f%%',
+                   colors=colors, startangle=90, counterclock=False)
+
+            # ИСПРАВЛЕНО: используем layout_name вместо name
+            layout_name = layout_data["layout_name"]
+            alias = self._normalize_name(layout_name)
+            label = self.layout_labels.get(alias, layout_name)
+            ax.set_title(f'{label}\n(Общая нагрузка: {layout_data["total_load"]})',
+                         fontsize=12, fontweight='bold')
+
+        # Скрываем пустые оси
+        for idx in range(len(structured_data), rows * cols):
+            row = idx // cols
+            col = idx % cols
+            if rows > 1 and cols > 1:
+                axes[row, col].set_visible(False)
+            else:
+                axes[idx].set_visible(False)
+
+        plt.tight_layout()
+        plt.subplots_adjust(top=0.9)
+        plt.show()
+
+    def _create_word_hand_pie_charts(self, structured_data: list, corpus_name: str):
+        """НОВЫЕ круговые диаграммы: распределение полных слов между руками."""
+        n_layouts = len(structured_data)
+        if n_layouts == 0:
+            return
+
+        cols = min(2, n_layouts)
+        rows = (n_layouts + cols - 1) // cols
+
+        fig, axes = plt.subplots(rows, cols, figsize=(6 * cols, 6 * rows))
+        fig.suptitle(f'Распределение полных слов между руками ({corpus_name})',
+                     fontsize=16, fontweight='bold')
+
+        if n_layouts == 1:
+            axes = np.array([axes])
+        if rows == 1 and cols == 1:
+            axes = np.array([axes])
+        elif rows == 1:
+            axes = axes.reshape(1, -1)
+        elif cols == 1:
+            axes = axes.reshape(-1, 1)
+
+        for idx, layout_data in enumerate(structured_data):
+            row = idx // cols
+            col = idx % cols
+            ax = axes[row, col] if rows > 1 and cols > 1 else axes[idx]
+
+            word_hand_stats = layout_data.get("word_hand_stats", {})
+
+            # Если данных нет, пропускаем
+            if not word_hand_stats or "left_hand_words" not in word_hand_stats:
+                ax.text(0.5, 0.5, 'Нет данных\nо словах',
+                        ha='center', va='center', transform=ax.transAxes, fontsize=12)
+                # ИСПРАВЛЕНО: используем layout_name вместо name
+                layout_name = layout_data["layout_name"]
+                alias = self._normalize_name(layout_name)
+                label = self.layout_labels.get(alias, layout_name)
+                ax.set_title(f'{label}', fontsize=12, fontweight='bold')
+                continue
+
+            left_words = word_hand_stats["left_hand_words"]
+            right_words = word_hand_stats["right_hand_words"]
+            both_hands_words = word_hand_stats["both_hands_words"]
+            total_words = left_words + right_words + both_hands_words
+
+            # Проценты
+            if total_words > 0:
+                left_percent = (left_words / total_words) * 100
+                right_percent = (right_words / total_words) * 100
+                both_percent = (both_hands_words / total_words) * 100
+            else:
+                left_percent = right_percent = both_percent = 0
+
+            sizes = [left_words, right_words, both_hands_words]
+            labels = [
+                f'Только левая рука\n{left_words} слов ({left_percent:.1f}%)',
+                f'Только правая рука\n{right_words} слов ({right_percent:.1f}%)',
+                f'Обе руки\n{both_hands_words} слов ({both_percent:.1f}%)'
+            ]
+            colors = ['#1f77b4', '#ff7f0e', '#2ca02c']
+
+            wedges, texts, autotexts = ax.pie(sizes, labels=labels, autopct='%1.1f%%',
+                                              colors=colors, startangle=90,
+                                              counterclock=False, textprops={'fontsize': 9})
+
+            # Увеличиваем шрифт для процентов
+            for autotext in autotexts:
+                autotext.set_fontsize(10)
+                autotext.set_fontweight('bold')
+
+            # ИСПРАВЛЕНО: используем layout_name вместо name
+            layout_name = layout_data["layout_name"]
+            alias = self._normalize_name(layout_name)
+            label = self.layout_labels.get(alias, layout_name)
+            ax.set_title(f'{label}\nВсего слов: {total_words}',
+                         fontsize=12, fontweight='bold')
+
+        # Скрываем пустые оси
+        for idx in range(len(structured_data), rows * cols):
             row = idx // cols
             col = idx % cols
             if rows > 1 and cols > 1:
