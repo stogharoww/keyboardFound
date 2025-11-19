@@ -10,6 +10,18 @@ import os
 
 
 async def main():
+    """
+    Основная асинхронная функция для запуска полного анализа раскладок клавиатуры.
+
+    Выполняет:
+    1. Инициализацию анализатора текста
+    2. Полный анализ всех корпусов данных
+    3. Вывод результатов в консоль
+    4. Построение графиков для каждого корпуса
+
+    Returns:
+        None
+    """
     # Инициализация анализатора
     analyzer = analization.TextAnalyzer(debug_mode=False)
 
@@ -20,16 +32,8 @@ async def main():
     for corpus_name, raw_results in results_dict.items():
         print(f"\n===== Результаты для корпуса: {corpus_name} =====")
         for res in raw_results:
-            # Обрабатываем разное количество возвращаемых значений
-            if len(res) == 7:  # С новыми данными о словах
-                layout_name, total_load, hand_switches, modifier_count, finger_stats, word_stats, word_hand_stats = res
-            elif len(res) == 6:  # Со старыми данными
-                layout_name, total_load, hand_switches, modifier_count, finger_stats, word_stats = res
-                word_hand_stats = {}
-            else:  # Минимальный набор данных
-                layout_name, total_load, hand_switches, modifier_count, finger_stats = res
-                word_stats = None
-                word_hand_stats = {}
+            layout_name, total_load, hand_switches, modifier_count, finger_stats, *rest = res
+            word_stats = rest[0] if rest else None
 
             print(f"\n📋 Раскладка: {layout_name}")
             print(f"🔹 Общая нагрузка: {total_load}")
@@ -44,11 +48,6 @@ async def main():
                 for k, v in word_stats.items():
                     print(f"   {k}: {v}")
 
-            if word_hand_stats:
-                print("🔹 Статистика по полным словам между руками:")
-                for k, v in word_hand_stats.items():
-                    print(f"   {k}: {v}")
-
     graphics = GraphicsAnalyzer(analyzer.layouts)
 
     # здесь мы знаем пути к файлам
@@ -58,14 +57,12 @@ async def main():
     csvFile = "data/sortchbukw.csv"
 
     # строим графики с названием файла в заголовке
-    graphics.showAll(results_dict["text"], corpus_name="text")
-
+    graphics.showAll(results_dict["text"], corpus_name=os.path.basename(textFile))
     graphics.showAll(results_dict["digramms"], corpus_name=os.path.basename(digramsFile))
-
     graphics.showAll(results_dict["onegramms"], corpus_name=os.path.basename(onegramsFile))
-
     graphics.showAll(results_dict["csv"], corpus_name=os.path.basename(csvFile))
 
 
 if __name__ == '__main__':
+   
     asyncio.run(main())
