@@ -1,12 +1,11 @@
 """
 Модуль для сравнительного анализа эргономики раскладок клавиатуры.
-Запускает полный анализ (текст, биграммы, CSV) и строит графики.
+Запускает полный анализ (текст, биграммы, CSV) и строит усреднённые графики.
 """
 
 import asyncio
 import analization
 from Graphics import GraphicsAnalyzer
-import os
 
 
 async def main():
@@ -48,19 +47,9 @@ async def main():
                 for k, v in word_stats.items():
                     print(f"   {k}: {v}")
 
+    # Построение усреднённых графиков
     graphics = GraphicsAnalyzer(analyzer.layouts)
-
-    # здесь мы знаем пути к файлам
-    textFile = "data/voina-i-mir.txt"
-    digramsFile = "data/digramms.txt"
-    onegramsFile = "data/1grams-3.txt"
-    csvFile = "data/sortchbukw.csv"
-
-    # строим графики с названием файла в заголовке
-    graphics.showAll(results_dict["text"], corpus_name=os.path.basename(textFile))
-    graphics.showAll(results_dict["digramms"], corpus_name=os.path.basename(digramsFile))
-    graphics.showAll(results_dict["onegramms"], corpus_name=os.path.basename(onegramsFile))
-    graphics.showAll(results_dict["csv"], corpus_name=os.path.basename(csvFile))
+    graphics.showAveragedAll(results_dict)
 
 
 if __name__ == '__main__':

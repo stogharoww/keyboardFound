@@ -3,30 +3,7 @@ import numpy as np
 
 
 class GraphicsAnalyzer:
-    """
-    Класс для визуализации результатов анализа эргономики раскладок клавиатуры.
-
-    Создает различные типы графиков и диаграмм для сравнения раскладок:
-    - Столбчатые диаграммы нагрузки по пальцам
-    - Графики общей нагрузки
-    - Распределение нагрузки между руками
-    - Круговые диаграммы распределения слов
-
-    Attributes:
-        layouts (dict): Словарь с данными раскладок клавиатуры
-        layout_colors (dict): Цвета для визуализации разных раскладок
-        layout_labels (dict): Русские названия раскладок для легенды
-        finger_names_ru (dict): Русские названия пальцев
-        finger_order (list): Порядок отображения пальцев на графиках
-    """
-
     def __init__(self, layouts: dict):
-        """
-        Инициализация анализатора графиков.
-
-        Args:
-            layouts (dict): Словарь с данными раскладок клавиатуры, полученный из keyInitializations()
-        """
         self.layouts = layouts
 
         # Цвета для раскладок
@@ -61,18 +38,6 @@ class GraphicsAnalyzer:
                              'rfi1', 'rfi2', 'rfi3', 'rfi4', 'rfi5']
 
     def _normalize_name(self, name: str) -> str:
-        """
-        Нормализует название раскладки к стандартному формату.
-
-        Приводит название к нижнему регистру, удаляет пробелы и преобразует
-        русские названия в английские идентификаторы.
-
-        Args:
-            name (str): Исходное название раскладки
-
-        Returns:
-            str: Нормализованное название раскладки
-        """
         clean = name.strip().lower().replace("\n", "").replace("\r", "")
         mapping = {
             "йцукен": "qwerty",
@@ -85,20 +50,6 @@ class GraphicsAnalyzer:
         return mapping.get(clean, clean)
 
     def _prepare_results(self, results: list) -> tuple[list, list]:
-        """
-        Подготавливает и структурирует сырые результаты анализа для визуализации.
-
-        Обрабатывает как словарные, так и списковые форматы результатов.
-        Добавляет нулевые значения для отсутствующих пальцев.
-
-        Args:
-            results (list): Список сырых результатов анализа
-
-        Returns:
-            tuple[list, list]:
-                - structured: Структурированные результаты с полными данными
-                - all_layouts_data: Данные для построения графиков
-        """
         structured = []
         all_layouts_data = []
 
@@ -117,7 +68,6 @@ class GraphicsAnalyzer:
                     layout_name, total_load, hand_switches, modifier_count, finger_stats = res
                     word_stats = None
 
-            # Добавляем нулевые значения для отсутствующих пальцев
             all_fingers = set(self.layouts[layout_name]["fingerKey"].keys())
             for f in all_fingers:
                 if f not in finger_stats:
@@ -146,19 +96,7 @@ class GraphicsAnalyzer:
     # ---------------- Графики ----------------
 
     def _create_all_layouts_comparison_chart(self, layouts_data: list, corpus_name: str):
-        """
-        Создает единый график сравнения нагрузки по пальцам для всех раскладок.
-
-        Отображает горизонтальные столбчатые диаграммы с процентным соотношением
-        нагрузки для каждого пальца. Каждая раскладка представлена своим цветом.
-
-        Args:
-            layouts_data (list): Список данных раскладок для визуализации
-            corpus_name (str): Название корпуса для заголовка графика
-
-        Returns:
-            None
-        """
+        """Единый график сравнения нагрузки по пальцам для всех раскладок."""
         if not layouts_data:
             return
 
@@ -177,7 +115,6 @@ class GraphicsAnalyzer:
             bars = ax.barh(y_pos + offset, values, height=bar_height,
                            color=layout_color, alpha=0.7, label=label)
 
-            # Добавляем проценты
             total = sum(values)
             max_val = max(values) if values else 1
             for bar, value in zip(bars, values):
@@ -202,19 +139,6 @@ class GraphicsAnalyzer:
         plt.show()
 
     def _create_total_load_chart(self, layouts_data: list, corpus_name: str):
-        """
-        Создает график общей нагрузки для всех раскладок.
-
-        Отображает горизонтальные столбцы с общей нагрузкой каждой раскладки.
-        Полезен для быстрого сравнения общей эффективности раскладок.
-
-        Args:
-            layouts_data (list): Список данных раскладок для визуализации
-            corpus_name (str): Название корпуса для заголовка графика
-
-        Returns:
-            None
-        """
         names = [layout["name"] for layout in layouts_data]
         totals = [layout["total"] for layout in layouts_data]
 
@@ -236,19 +160,6 @@ class GraphicsAnalyzer:
         plt.show()
 
     def _create_hand_distribution_chart(self, layouts_data: list, corpus_name: str):
-        """
-        Создает график распределения нагрузки между левой и правой рукой.
-
-        Для каждой раскладки отображает два столбца: нагрузка на левую руку
-        и нагрузка на правую руку. Позволяет оценить баланс между руками.
-
-        Args:
-            layouts_data (list): Список данных раскладок для визуализации
-            corpus_name (str): Название корпуса для заголовка графика
-
-        Returns:
-            None
-        """
         names = [layout["name"] for layout in layouts_data]
         left_loads, right_loads = [], []
 
@@ -283,20 +194,7 @@ class GraphicsAnalyzer:
         plt.show()
 
     def _create_hand_pie_charts(self, layouts_data: list, corpus_name: str):
-        """
-        Создает круговые диаграммы распределения слов по рукам.
-
-        Для каждой раскладки показывает процентное соотношение слов,
-        которые набираются только левой рукой, только правой рукой
-        или обеими руками одновременно.
-
-        Args:
-            layouts_data (list): Список данных раскладок для визуализации
-            corpus_name (str): Название корпуса для заголовка графика
-
-        Returns:
-            None
-        """
+        """Круговые диаграммы: слова только левой рукой, только правой рукой, обе руки."""
         n_layouts = len(layouts_data)
         if n_layouts == 0:
             return
@@ -308,7 +206,6 @@ class GraphicsAnalyzer:
         fig.suptitle(f'Круговые диаграммы распределения слов по рукам ({corpus_name})',
                      fontsize=16, fontweight='bold')
 
-        # Обработка разных случаев расположения осей
         if n_layouts == 1:
             axes = np.array([axes])
         if rows == 1 and cols == 1:
@@ -354,20 +251,8 @@ class GraphicsAnalyzer:
 
     def showAll(self, results: list, corpus_name: str = "text"):
         """
-        Строит все графики и диаграммы для одного корпуса данных.
-
-        Создает последовательность графиков:
-        1. Сравнение нагрузки по пальцам
-        2. Общая нагрузка раскладок
-        3. Распределение нагрузки между руками
-        4. Круговые диаграммы слов (только для корпуса 'text')
-
-        Args:
-            results (list): Список результатов анализа для одного корпуса
-            corpus_name (str, optional): Название корпуса данных. Defaults to "text"
-
-        Returns:
-            list: Структурированные результаты анализа
+        Построение всех графиков и диаграмм для одного корпуса.
+        Если corpus_name == 'text', дополнительно строятся круговые диаграммы.
         """
         structured, all_layouts_data = self._prepare_results(results)
 
@@ -384,20 +269,8 @@ class GraphicsAnalyzer:
 
     def showAllFromDict(self, results_dict: dict):
         """
-        Строит графики для всех корпусов данных по очереди.
-
-        Обрабатывает словарь с результатами для разных типов корпусов:
-        - text: основной текстовый корпус
-        - digramms: биграммы
-        - onegramms: 1-граммы
-        - csv: CSV данные
-
-        Args:
-            results_dict (dict): Словарь с результатами для разных корпусов
-                Формат: {"text": [...], "digramms": [...], "onegramms": [...], "csv": [...]}
-
-        Returns:
-            None
+        Построение графиков для всех корпусов по очереди.
+        results_dict: словарь вида {"text": [...], "digramms": [...], "onegramms": [...], "csv": [...]}
         """
         for corpus_name, results in results_dict.items():
             print(f"\n=== Построение графиков для корпуса: {corpus_name} ===")
