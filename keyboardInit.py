@@ -169,53 +169,61 @@ def massiveList():
         ['2', '2', '2', '2', '3', '3', '2', '2', '2', '2']
     ]
 
-    return matrix, yaverty, vizov, qwerty, shtrafs
+    ant = [
+        ['\\', 'shift+-', '!', 'shift+9', '?', 'shift+7', '`', 'shift+5', '"', 'shift+3', '=', 'shift+1',
+         '+', 'shift+0', '-', 'shift+2', '*', 'shift+4', '/', 'shift+6', '%', 'shift+8', '(', 'shift+«', ')',
+         'shift+»'],
+        ['Г', 'П', 'Р', 'Д', 'М', 'Ы', 'И', 'Я', 'У', 'Х', 'Ц', 'Ж', 'Ч'],
+        ['В', 'Н', 'С', 'Т', 'Л', 'Ь', 'О', 'Е', 'А', 'К', 'З'],
+        ['Щ', 'Й', 'Ш', 'Б', ',', 'shift+;', '.', 'shift+:', 'Ю', 'Э', 'Ё', 'Ф']
+    ]
+
+    skoropis = [
+        ['*', '.', 'ё', 'ъ', '?', '!', '-', '(', ')', '__', '«'],
+        ['ц', 'ь', 'я', ',', '.', 'з', 'в', 'к', 'д', 'ч', 'ш', 'щ', "'", '"'],
+        ['у', 'и', 'е', 'о', 'а', 'л', 'н', 'т', 'с', 'р', 'й'],
+        ['ф', 'э', 'ч', 'ы', 'ю', 'б', 'м', 'п', 'г', 'ж']
+    ]
+
+    zubachew = [
+        ['Ё', '1', 'shift+!', '2', 'shift+"', '3', 'shift+№', '4', 'shift+;', '5', 'shift+%', '6', 'shift+:',
+         '7', 'shift+?', '8', 'shift+*', '9', 'shift+(', '0', 'shift+)', '-', 'shift+_', '=', 'shift++'],
+        ['Ф', 'Ы', 'А', 'Я', ',', 'Ъ', 'Й', 'М', 'З', 'П', 'Х', 'Ц', 'Щ', '\\', 'shift+/'],
+        ['Г', 'И', 'Е', 'О', 'У', 'Л', 'Т', 'С', 'Н', 'З', 'Ж'],
+        ['Ш', 'ь', 'shift+Ъ', 'Ю', '.', 'shift+Ь', 'Э', 'Б', 'Д', 'В', 'К', 'Ч']
+    ]
+
+    diktor = [
+        ['Ё', '1', 'shift+Ъ', '2', 'shift+Ь', '3', 'shift+№', '4', 'shift+%', '5', 'shift+:', '6', 'shift+;',
+         '7', 'shift+-', '8', 'shift+"', '9', 'shift+(', '0', 'shift+)', '*', 'shift+-', '=', 'shift++'],
+        ['Ц', 'ь', 'shift+ъ', 'Я', ',', 'shift+?', '.', 'shift+!', 'З', 'В', 'К', 'Д', 'Ч', 'Ш', 'Щ'],
+        ['У', 'И', 'Е', 'О', 'А', 'Л', 'Н', 'Т', 'С', 'Р', 'Й'],
+        ['Ф', 'Э', 'Х', 'Ы', 'Ю', 'Б', 'М', 'П', 'Г', 'Ж']
+    ]
+
+    return matrix, yaverty, vizov, qwerty, shtrafs, ant, skoropis, zubachew, diktor
 
 
-async def debugingFunction(layouts):
-    for layout in layouts:
-        print(f"\n📋 Раскладка: {layout.layout_name}")
-
-        # Проверяем символы без пальца
-        for sym, finger in layout.sym_to_finger.items():
-            if finger is None:
-                print(f"❗️ {sym} не имеет пальца")
-
-        # Выводим все клавиши и символы на них
-        for keyIndex in sorted(layout.bukvaKey.keys(), key=lambda x: int(x)):
-            joined = " | ".join(layout.bukvaKey[keyIndex])
-            print(f"Клавиша {keyIndex}: {joined}")
-
-        # Символы, назначенные на rfi2
-        for sym, finger in layout.sym_to_finger.items():
-            if finger == "rfi2":
-                print(f"👉 {sym} назначен на rfi2")
 
 
 async def keyInitializations():
-    matrix, yaverty, vizov, qwerty, shtrafs = massiveList()
+    matrix, yaverty, vizov, qwerty, shtrafs, ant, skoropis, zubachew, diktor = massiveList()
 
     layouts = [
-        Cortages(matrix, qwerty, 'qwerty'),
-        Cortages(matrix, vizov, 'vizov'),
-        Cortages(matrix, yaverty, 'yaverty'),
-        Cortages(matrix, shtrafs, 'ШТРАФЫ')
+        Cortages(matrix, qwerty, 'йцукен'),
+        Cortages(matrix, vizov, 'вызов'),
+        Cortages(matrix, yaverty, 'яверты'),
+        Cortages(matrix, shtrafs, 'ШТРАФЫ'),
+        Cortages(matrix, ant, 'ант'),
+        Cortages(matrix, skoropis, 'скоропись'),
+        Cortages(matrix, zubachew, 'зубачев'),
+        Cortages(matrix, diktor, 'диктор')
     ]
 
 
     # Асинхронно создаём кортежи и обрабатываем символы
     await asyncio.gather(*(layout.initialize() for layout in layouts))
 
-    # Проверка покрытия индексов
-    for layout in layouts:
-        all_bukva = set(layout.bukvaKey.keys())
-        all_fingers = {idx for ids in layout.fingerKey.values() for idx in ids}
-        missing = all_bukva - all_fingers
-        if missing:
-            print(f"❗️ В {layout.layout_name} индексы без пальцев: {missing}")
-
-    # Отладочный вывод
-    await debugingFunction(layouts)
 
     return {
         layout.layout_name: {
