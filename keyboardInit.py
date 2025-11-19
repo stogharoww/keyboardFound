@@ -8,11 +8,24 @@ import aiofiles
 import pandas as pd
 
 class CreatorBase:
-    """Класс, разделяющий клавиши на правую и левую руку"""
+    """Базовый класс для разделения клавиш клавиатуры на левую и правую руку"""
+
     def __init__(self, matrix):
+        """
+        Инициализация базового класса.
+
+        Args:
+            matrix: Матрица клавиш клавиатуры
+        """
         self.matrix = matrix
 
     def split(self):
+        """
+        Разделяет клавиши на левую и правую руку.
+
+        Returns:
+            tuple: (левые_клавиши, правые_клавиши)
+        """
         left = []
         right = []
         for i, row in enumerate(self.matrix):
@@ -26,21 +39,31 @@ class CreatorBase:
 
 
 class Cortages(CreatorBase):
+    """Класс для создания структуры данных раскладки клавиатуры"""
+
     def __init__(self, matrix, symbols, layout_name):
+        """
+        Инициализация раскладки.
+
+        Args:
+            matrix: Расположение клавиш
+            symbols: Символы на клавишах
+            layout_name: Название раскладки
+        """
         self.matrix = matrix
         self.symbols = symbols
         self.layout_name = layout_name
 
-        self.fingerKey = {}     # палец → индексы
-        self.bukvaKey = {}      # индекс → символы
+        self.fingerKey = {}     # палец → индексы клавиш
+        self.bukvaKey = {}      # индекс клавиши → символы на ней
         self.bukvaFinger = {}   # символ → палец
-        self.shtrafKey = {}
-        self.fingerShtraf = {}
-        self.sym_to_finger = {}
-        self.modifierMap = {}
+        self.shtrafKey = {}     # штрафы для клавиш
+        self.fingerShtraf = {}  # штрафы для пальцев
+        self.sym_to_finger = {} # символ → палец
+        self.modifierMap = {}   # модификаторы символов
 
     async def create_tuples(self):
-        """Формируем карту пальцев"""
+        """Создает карту распределения клавиш по пальцам рук"""
         left, right = self.split()
         abj_left = left.copy()
         abj_left[0] = abj_left[0][1:]
@@ -69,7 +92,7 @@ class Cortages(CreatorBase):
         await asyncio.sleep(0)
 
     async def process_bukva_index(self):
-        """Формируем карту индекс → символы"""
+        """Создает карту символов и их модификаторов для каждой клавиши"""
         self.modifierMap = {}
 
         for row_idx, row in enumerate(self.symbols):
@@ -118,6 +141,7 @@ class Cortages(CreatorBase):
         await asyncio.sleep(0)
 
     async def initialize(self):
+        """Основная функция инициализации раскладки"""
         await self.create_tuples()
         await self.process_bukva_index()
 
@@ -130,6 +154,12 @@ class Cortages(CreatorBase):
 
 
 def massiveList():
+    """
+    Создает тестовые данные раскладок клавиатуры.
+
+    Returns:
+        tuple: матрица клавиш и четыре раскладки (яверты, визов, qwerty, штрафы)
+    """
     matrix = [
         ['41', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13'],
         ['16', '17', '18', '19', '20', '21', '22', '23', '24', '25', '26', '27', '43'],
@@ -173,6 +203,12 @@ def massiveList():
 
 
 async def debugingFunction(layouts):
+    """
+    Выводит отладочную информацию о раскладках.
+
+    Args:
+        layouts: Список раскладок для проверки
+    """
     for layout in layouts:
         print(f"\n📋 Раскладка: {layout.layout_name}")
 
@@ -193,6 +229,12 @@ async def debugingFunction(layouts):
 
 
 async def keyInitializations():
+    """
+    Основная функция инициализации всех раскладок клавиатуры.
+
+    Returns:
+        dict: Словарь со всеми инициализированными раскладками
+    """
     matrix, yaverty, vizov, qwerty, shtrafs = massiveList()
 
     layouts = [
@@ -232,6 +274,17 @@ async def keyInitializations():
 
 
 async def importFromFiles(textFile, digramsFile, csvFile):
+    """
+    Загружает данные из файлов для анализа.
+
+    Args:
+        textFile: Путь к текстовому файлу
+        digramsFile: Путь к файлу с биграммами
+        csvFile: Путь к CSV файлу
+
+    Returns:
+        tuple: (текст, биграммы, CSV данные)
+    """
     async with aiofiles.open(textFile, "r", encoding="utf-8") as f:
         text = await f.read()
 
