@@ -3,7 +3,30 @@ import numpy as np
 
 
 class GraphicsAnalyzer:
+    """
+    Класс для визуализации результатов анализа эргономики раскладок клавиатуры.
+
+    Создает различные типы графиков и диаграмм для сравнения раскладок:
+    - Столбчатые диаграммы нагрузки по пальцам
+    - Графики общей нагрузки
+    - Распределение нагрузки между руками
+    - Круговые диаграммы распределения слов
+
+    Attributes:
+        layouts (dict): Словарь с данными раскладок клавиатуры
+        layout_colors (dict): Цвета для визуализации разных раскладок
+        layout_labels (dict): Русские названия раскладок для легенды
+        finger_names_ru (dict): Русские названия пальцев
+        finger_order (list): Порядок отображения пальцев на графиках
+    """
+
     def __init__(self, layouts: dict):
+        """
+        Инициализация анализатора графиков.
+
+        Args:
+            layouts (dict): Словарь с данными раскладок клавиатуры, полученный из keyInitializations()
+        """
         self.layouts = layouts
 
         # Цвета для раскладок
@@ -38,6 +61,18 @@ class GraphicsAnalyzer:
                              'rfi1', 'rfi2', 'rfi3', 'rfi4', 'rfi5']
 
     def _normalize_name(self, name: str) -> str:
+        """
+        Нормализует название раскладки к стандартному формату.
+
+        Приводит название к нижнему регистру, удаляет пробелы и преобразует
+        русские названия в английские идентификаторы.
+
+        Args:
+            name (str): Исходное название раскладки
+
+        Returns:
+            str: Нормализованное название раскладки
+        """
         clean = name.strip().lower().replace("\n", "").replace("\r", "")
         mapping = {
             "йцукен": "qwerty",
@@ -50,6 +85,20 @@ class GraphicsAnalyzer:
         return mapping.get(clean, clean)
 
     def _prepare_results(self, results: list) -> tuple[list, list]:
+        """
+        Подготавливает и структурирует сырые результаты анализа для визуализации.
+
+        Обрабатывает как словарные, так и списковые форматы результатов.
+        Добавляет нулевые значения для отсутствующих пальцев.
+
+        Args:
+            results (list): Список сырых результатов анализа
+
+        Returns:
+            tuple[list, list]:
+                - structured: Структурированные результаты с полными данными
+                - all_layouts_data: Данные для построения графиков
+        """
         structured = []
         all_layouts_data = []
 
@@ -61,20 +110,14 @@ class GraphicsAnalyzer:
                 modifier_count = res["modifier_count"]
                 finger_stats = res["finger_statistics"]
                 word_stats = res.get("word_stats")
-                # Новые данные для круговых диаграмм слов
-                word_hand_stats = res.get("word_hand_stats", {})
             else:
-                if len(res) >= 7:
-                    layout_name, total_load, hand_switches, modifier_count, finger_stats, word_stats, word_hand_stats = res[
-                                                                                                                        :7]
-                elif len(res) == 6:
+                if len(res) == 6:
                     layout_name, total_load, hand_switches, modifier_count, finger_stats, word_stats = res
-                    word_hand_stats = {}
                 else:
                     layout_name, total_load, hand_switches, modifier_count, finger_stats = res
                     word_stats = None
-                    word_hand_stats = {}
 
+            # Добавляем нулевые значения для отсутствующих пальцев
             all_fingers = set(self.layouts[layout_name]["fingerKey"].keys())
             for f in all_fingers:
                 if f not in finger_stats:
@@ -86,8 +129,7 @@ class GraphicsAnalyzer:
                 "hand_switches": hand_switches,
                 "modifier_count": modifier_count,
                 "finger_statistics": finger_stats,
-                "word_stats": word_stats,
-                "word_hand_stats": word_hand_stats
+                "word_stats": word_stats
             })
 
             all_layouts_data.append({
@@ -96,8 +138,7 @@ class GraphicsAnalyzer:
                 "total": total_load,
                 "hand_switches": hand_switches,
                 "modifier_count": modifier_count,
-                "word_stats": word_stats,
-                "word_hand_stats": word_hand_stats
+                "word_stats": word_stats
             })
 
         return structured, all_layouts_data
@@ -105,7 +146,19 @@ class GraphicsAnalyzer:
     # ---------------- Графики ----------------
 
     def _create_all_layouts_comparison_chart(self, layouts_data: list, corpus_name: str):
-        """Единый график сравнения нагрузки по пальцам для всех раскладок."""
+        """
+        Создает единый график сравнения нагрузки по пальцам для всех раскладок.
+
+        Отображает горизонтальные столбчатые диаграммы с процентным соотношением
+        нагрузки для каждого пальца. Каждая раскладка представлена своим цветом.
+
+        Args:
+            layouts_data (list): Список данных раскладок для визуализации
+            corpus_name (str): Название корпуса для заголовка графика
+
+        Returns:
+            None
+        """
         if not layouts_data:
             return
 
@@ -124,6 +177,7 @@ class GraphicsAnalyzer:
             bars = ax.barh(y_pos + offset, values, height=bar_height,
                            color=layout_color, alpha=0.7, label=label)
 
+            # Добавляем проценты
             total = sum(values)
             max_val = max(values) if values else 1
             for bar, value in zip(bars, values):
@@ -148,6 +202,19 @@ class GraphicsAnalyzer:
         plt.show()
 
     def _create_total_load_chart(self, layouts_data: list, corpus_name: str):
+        """
+        Создает график общей нагрузки для всех раскладок.
+
+        Отображает горизонтальные столбцы с общей нагрузкой каждой раскладки.
+        Полезен для быстрого сравнения общей эффективности раскладок.
+
+        Args:
+            layouts_data (list): Список данных раскладок для визуализации
+            corpus_name (str): Название корпуса для заголовка графика
+
+        Returns:
+            None
+        """
         names = [layout["name"] for layout in layouts_data]
         totals = [layout["total"] for layout in layouts_data]
 
@@ -169,6 +236,19 @@ class GraphicsAnalyzer:
         plt.show()
 
     def _create_hand_distribution_chart(self, layouts_data: list, corpus_name: str):
+        """
+        Создает график распределения нагрузки между левой и правой рукой.
+
+        Для каждой раскладки отображает два столбца: нагрузка на левую руку
+        и нагрузка на правую руку. Позволяет оценить баланс между руками.
+
+        Args:
+            layouts_data (list): Список данных раскладок для визуализации
+            corpus_name (str): Название корпуса для заголовка графика
+
+        Returns:
+            None
+        """
         names = [layout["name"] for layout in layouts_data]
         left_loads, right_loads = [], []
 
@@ -203,7 +283,20 @@ class GraphicsAnalyzer:
         plt.show()
 
     def _create_hand_pie_charts(self, layouts_data: list, corpus_name: str):
-        """Круговые диаграммы: слова только левой рукой, только правой рукой, обе руки."""
+        """
+        Создает круговые диаграммы распределения слов по рукам.
+
+        Для каждой раскладки показывает процентное соотношение слов,
+        которые набираются только левой рукой, только правой рукой
+        или обеими руками одновременно.
+
+        Args:
+            layouts_data (list): Список данных раскладок для визуализации
+            corpus_name (str): Название корпуса для заголовка графика
+
+        Returns:
+            None
+        """
         n_layouts = len(layouts_data)
         if n_layouts == 0:
             return
@@ -215,6 +308,7 @@ class GraphicsAnalyzer:
         fig.suptitle(f'Круговые диаграммы распределения слов по рукам ({corpus_name})',
                      fontsize=16, fontweight='bold')
 
+        # Обработка разных случаев расположения осей
         if n_layouts == 1:
             axes = np.array([axes])
         if rows == 1 and cols == 1:
@@ -258,159 +352,22 @@ class GraphicsAnalyzer:
         plt.subplots_adjust(top=0.9)
         plt.show()
 
-    def _create_hand_pie_charts(self, structured_data: list, corpus_name: str):
-        """Круговые диаграммы: слова только левой рукой, только правой рукой, обе руки."""
-        n_layouts = len(structured_data)
-        if n_layouts == 0:
-            return
-
-        cols = min(2, n_layouts)
-        rows = (n_layouts + cols - 1) // cols
-
-        fig, axes = plt.subplots(rows, cols, figsize=(6 * cols, 6 * rows))
-        fig.suptitle(f'Круговые диаграммы распределения слов по рукам ({corpus_name})',
-                     fontsize=16, fontweight='bold')
-
-        if n_layouts == 1:
-            axes = np.array([axes])
-        if rows == 1 and cols == 1:
-            axes = np.array([axes])
-        elif rows == 1:
-            axes = axes.reshape(1, -1)
-        elif cols == 1:
-            axes = axes.reshape(-1, 1)
-
-        for idx, layout_data in enumerate(structured_data):
-            row = idx // cols
-            col = idx % cols
-            ax = axes[row, col] if rows > 1 and cols > 1 else axes[idx]
-
-            word_stats = layout_data.get("word_stats")
-            if not word_stats:
-                ax.set_visible(False)
-                continue
-
-            loads = [word_stats["left_only"], word_stats["right_only"], word_stats["both"]]
-            labels = ['Только левая рука', 'Только правая рука', 'Обе руки']
-            colors = ['#1f77b4', '#ff7f0e', '#2ca02c']
-
-            ax.pie(loads, labels=labels, autopct='%1.1f%%',
-                   colors=colors, startangle=90, counterclock=False)
-
-            # ИСПРАВЛЕНО: используем layout_name вместо name
-            layout_name = layout_data["layout_name"]
-            alias = self._normalize_name(layout_name)
-            label = self.layout_labels.get(alias, layout_name)
-            ax.set_title(f'{label}\n(Общая нагрузка: {layout_data["total_load"]})',
-                         fontsize=12, fontweight='bold')
-
-        # Скрываем пустые оси
-        for idx in range(len(structured_data), rows * cols):
-            row = idx // cols
-            col = idx % cols
-            if rows > 1 and cols > 1:
-                axes[row, col].set_visible(False)
-            else:
-                axes[idx].set_visible(False)
-
-        plt.tight_layout()
-        plt.subplots_adjust(top=0.9)
-        plt.show()
-
-    def _create_word_hand_pie_charts(self, structured_data: list, corpus_name: str):
-        """НОВЫЕ круговые диаграммы: распределение полных слов между руками."""
-        n_layouts = len(structured_data)
-        if n_layouts == 0:
-            return
-
-        cols = min(2, n_layouts)
-        rows = (n_layouts + cols - 1) // cols
-
-        fig, axes = plt.subplots(rows, cols, figsize=(6 * cols, 6 * rows))
-        fig.suptitle(f'Распределение полных слов между руками ({corpus_name})',
-                     fontsize=16, fontweight='bold')
-
-        if n_layouts == 1:
-            axes = np.array([axes])
-        if rows == 1 and cols == 1:
-            axes = np.array([axes])
-        elif rows == 1:
-            axes = axes.reshape(1, -1)
-        elif cols == 1:
-            axes = axes.reshape(-1, 1)
-
-        for idx, layout_data in enumerate(structured_data):
-            row = idx // cols
-            col = idx % cols
-            ax = axes[row, col] if rows > 1 and cols > 1 else axes[idx]
-
-            word_hand_stats = layout_data.get("word_hand_stats", {})
-
-            # Если данных нет, пропускаем
-            if not word_hand_stats or "left_hand_words" not in word_hand_stats:
-                ax.text(0.5, 0.5, 'Нет данных\nо словах',
-                        ha='center', va='center', transform=ax.transAxes, fontsize=12)
-                # ИСПРАВЛЕНО: используем layout_name вместо name
-                layout_name = layout_data["layout_name"]
-                alias = self._normalize_name(layout_name)
-                label = self.layout_labels.get(alias, layout_name)
-                ax.set_title(f'{label}', fontsize=12, fontweight='bold')
-                continue
-
-            left_words = word_hand_stats["left_hand_words"]
-            right_words = word_hand_stats["right_hand_words"]
-            both_hands_words = word_hand_stats["both_hands_words"]
-            total_words = left_words + right_words + both_hands_words
-
-            # Проценты
-            if total_words > 0:
-                left_percent = (left_words / total_words) * 100
-                right_percent = (right_words / total_words) * 100
-                both_percent = (both_hands_words / total_words) * 100
-            else:
-                left_percent = right_percent = both_percent = 0
-
-            sizes = [left_words, right_words, both_hands_words]
-            labels = [
-                f'Только левая рука\n{left_words} слов ({left_percent:.1f}%)',
-                f'Только правая рука\n{right_words} слов ({right_percent:.1f}%)',
-                f'Обе руки\n{both_hands_words} слов ({both_percent:.1f}%)'
-            ]
-            colors = ['#1f77b4', '#ff7f0e', '#2ca02c']
-
-            wedges, texts, autotexts = ax.pie(sizes, labels=labels, autopct='%1.1f%%',
-                                              colors=colors, startangle=90,
-                                              counterclock=False, textprops={'fontsize': 9})
-
-            # Увеличиваем шрифт для процентов
-            for autotext in autotexts:
-                autotext.set_fontsize(10)
-                autotext.set_fontweight('bold')
-
-            # ИСПРАВЛЕНО: используем layout_name вместо name
-            layout_name = layout_data["layout_name"]
-            alias = self._normalize_name(layout_name)
-            label = self.layout_labels.get(alias, layout_name)
-            ax.set_title(f'{label}\nВсего слов: {total_words}',
-                         fontsize=12, fontweight='bold')
-
-        # Скрываем пустые оси
-        for idx in range(len(structured_data), rows * cols):
-            row = idx // cols
-            col = idx % cols
-            if rows > 1 and cols > 1:
-                axes[row, col].set_visible(False)
-            else:
-                axes[idx].set_visible(False)
-
-        plt.tight_layout()
-        plt.subplots_adjust(top=0.9)
-        plt.show()
-
     def showAll(self, results: list, corpus_name: str = "text"):
         """
-        Построение всех графиков и диаграмм для одного корпуса.
-        Если corpus_name == 'text', дополнительно строятся круговые диаграммы.
+        Строит все графики и диаграммы для одного корпуса данных.
+
+        Создает последовательность графиков:
+        1. Сравнение нагрузки по пальцам
+        2. Общая нагрузка раскладок
+        3. Распределение нагрузки между руками
+        4. Круговые диаграммы слов (только для корпуса 'text')
+
+        Args:
+            results (list): Список результатов анализа для одного корпуса
+            corpus_name (str, optional): Название корпуса данных. Defaults to "text"
+
+        Returns:
+            list: Структурированные результаты анализа
         """
         structured, all_layouts_data = self._prepare_results(results)
 
@@ -427,8 +384,20 @@ class GraphicsAnalyzer:
 
     def showAllFromDict(self, results_dict: dict):
         """
-        Построение графиков для всех корпусов по очереди.
-        results_dict: словарь вида {"text": [...], "digramms": [...], "onegramms": [...], "csv": [...]}
+        Строит графики для всех корпусов данных по очереди.
+
+        Обрабатывает словарь с результатами для разных типов корпусов:
+        - text: основной текстовый корпус
+        - digramms: биграммы
+        - onegramms: 1-граммы
+        - csv: CSV данные
+
+        Args:
+            results_dict (dict): Словарь с результатами для разных корпусов
+                Формат: {"text": [...], "digramms": [...], "onegramms": [...], "csv": [...]}
+
+        Returns:
+            None
         """
         for corpus_name, results in results_dict.items():
             print(f"\n=== Построение графиков для корпуса: {corpus_name} ===")
