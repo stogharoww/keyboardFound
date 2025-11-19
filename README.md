@@ -31,36 +31,24 @@
 ---
 
 ## Визуализации
-Результаты выводятся в графической форме (графики кривых).  
+Результаты выводятся в графической форме.  
 Примеры:
 
-### ЙЦУКЕН
-<img width="1804" height="999" alt="2025-11-12_23-29-56" src="https://github.com/user-attachments/assets/e62ce874-81e2-4ac7-98b7-73566462cdd6" />
+### Сравнение нагрузки по пальцам (Среднее по текстам)
+<img width="2160" height="1371" alt="image" src="https://github.com/user-attachments/assets/c82020ff-08f7-4399-82bd-a4a1a422d7cf" />
 *Рис. 1. Нагрузка на пальцы при печати в раскладке ЙЦУКЕН.*
 
-### Вызов
-<img width="1791" height="1001" alt="2025-11-12_23-31-07" src="https://github.com/user-attachments/assets/a4903430-5240-47fe-b42e-f8c564e972aa" />
+### Общая нагрузка по раскладкам
+<img width="2105" height="516" alt="image" src="https://github.com/user-attachments/assets/4d1a8c41-d402-4423-833a-4066d7916f3e" />
 *Рис. 2. Нагрузка на пальцы при печати в раскладке Вызов.*
 
-### Яверты
-<img width="1786" height="997" alt="2025-11-12_23-31-54" src="https://github.com/user-attachments/assets/1c79620f-510b-49e8-bdc7-fcc92efe34ab" />
+### Распределение нагрузки между руками
+<img width="2097" height="514" alt="image" src="https://github.com/user-attachments/assets/040f6d8e-f92e-4fed-a8cb-0efa6ad07140" />
 *Рис. 3. Нагрузка на пальцы при печати в раскладке Яверты.*
 
-### Сравнение трёх раскладок
-<img width="2160" height="1367" alt="2025-11-12_23-27-22" src="https://github.com/user-attachments/assets/e8941d5f-8e68-4a4a-9225-72d96444101a" />
+### Круговые диаграммы распределения
+<img width="2160" height="1373" alt="image" src="https://github.com/user-attachments/assets/d04dea2f-e2e0-4f77-bfcf-ca8ac0994f38" />
 *Рис. 4. Сравнительный график нагрузок.*
-
-### Общая нагрузка по трём раскладкам
-<img width="1792" height="992" alt="2025-11-12_23-32-35" src="https://github.com/user-attachments/assets/0464ccc3-4dc7-4050-8257-7367cd1eba0e" />
-*Рис. 5. Сравнительный график общей нагрузки по трём раскладкам.*
-
-### Распределение нагрузки между руками на трёх раскладках
-<img width="1791" height="991" alt="2025-11-12_23-33-23" src="https://github.com/user-attachments/assets/69936d35-e6d8-4816-bcfe-bd6fc75012ed" />
-*Рис. 6. Сравнительный график нагрузки по трём раскладкам между руками.*
-
-### Круговые диаграммы распределения между руками по трём раскладкам
-<img width="2160" height="1367" alt="2025-11-12_23-34-12" src="https://github.com/user-attachments/assets/d8994264-c55c-4bc3-91d5-fa518e812d5f" />
-*Рис. 7. Сравнительный график круговых диаграмм распределения между руками по трём раскладкам.*
 
 ---
 
