@@ -1,5 +1,14 @@
-import matplotlib.pyplot as plt
-import numpy as np
+try:
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    MATPLOTLIB_AVAILABLE = True
+    NUMPY_AVAILABLE = True
+except ImportError as e:
+    print(f"Ошибка импорта: {e}")
+    MATPLOTLIB_AVAILABLE = False
+    NUMPY_AVAILABLE = False
+
 import random
 
 
@@ -18,45 +27,22 @@ def get_layout_colors() -> dict:
 class GraphicsAnalyzer:
     def __init__(self, layouts: dict):
         self.layouts = layouts
-
-        # Цвета для раскладок (русские ключи)
         self.layout_colors = get_layout_colors()
-
-        # Подписи раскладок для легенды (русские как есть)
         self.layout_labels = {
-            "йцукен": "йцукен",
-            "вызов": "вызов",
-            "яверты": "яверты",
-            "ант": "ант",
-            "скоропись": "скоропись",
-            "зубачев": "зубачёв",
-            "диктор": "диктор",
+            "йцукен": "йцукен", "вызов": "вызов", "яверты": "яверты",
+            "ант": "ант", "скоропись": "скоропись", "зубачев": "зубачёв", "диктор": "диктор",
         }
 
-        # Подписи пальцев
         self.finger_names_ru = {
-            'lfi5': 'Левый мизинец',
-            'lfi4': 'Левый безымянный',
-            'lfi3': 'Левый средний',
-            'lfi2': 'Левый указательный',
-            'lfi1': 'Левый большой',
-            'rfi1': 'Правый большой',
-            'rfi2': 'Правый указательный',
-            'rfi3': 'Правый средний',
-            'rfi4': 'Правый безымянный',
+            'lfi5': 'Левый мизинец', 'lfi4': 'Левый безымянный', 'lfi3': 'Левый средний',
+            'lfi2': 'Левый указательный', 'lfi1': 'Левый большой', 'rfi1': 'Правый большой',
+            'rfi2': 'Правый указательный', 'rfi3': 'Правый средний', 'rfi4': 'Правый безымянный',
             'rfi5': 'Правый мизинец'
         }
 
-        self.finger_order = ['lfi5', 'lfi4', 'lfi3', 'lfi2', 'lfi1',
-                             'rfi1', 'rfi2', 'rfi3', 'rfi4', 'rfi5']
+        self.finger_order = ['lfi5', 'lfi4', 'lfi3', 'lfi2', 'lfi1', 'rfi1', 'rfi2', 'rfi3', 'rfi4', 'rfi5']
 
     def _prepare_results(self, results: list) -> tuple[list, list]:
-        """
-        Преобразует результаты анализа в структурированный вид для построения графиков.
-        Возвращает:
-        - structured: список словарей с данными по каждой раскладке
-        - all_layouts_data: список словарей для построения графиков
-        """
         structured = []
         all_layouts_data = []
 
@@ -77,7 +63,6 @@ class GraphicsAnalyzer:
                 else:
                     raise ValueError(f"Неподдерживаемый формат результата: {res}")
 
-            # гарантируем, что все пальцы есть в статистике
             all_fingers = set(self.layouts[layout_name]["fingerKey"].keys())
             for f in all_fingers:
                 if f not in finger_stats:
@@ -103,21 +88,11 @@ class GraphicsAnalyzer:
 
         return structured, all_layouts_data
 
-    # ---------------- Графики ----------------
-
     def _create_all_layouts_comparison_chart(self, layouts_data: list, corpus_name: str):
-        """
-        График сравнения нагрузки по пальцам для всех раскладок.
-        Сделан с учётом читабельности: широкие бары, увеличенное расстояние по оси Oy,
-        разделители между пальцами и проценты нагрузки.
-        """
-        if not layouts_data:
+        if not layouts_data or not NUMPY_AVAILABLE:
             return
 
-        # Список пальцев с русскими названиями
         fingers = [self.finger_names_ru.get(f, f) for f in self.finger_order]
-
-        # Увеличиваем расстояние между пальцами (по оси Oy)
         spacing = 1.5
         y_pos = np.arange(len(fingers)) * spacing
 
@@ -169,20 +144,25 @@ class GraphicsAnalyzer:
         names = [layout["name"] for layout in layouts_data]
         totals = [layout["total"] for layout in layouts_data]
 
+        # Вычисляем общую сумму нагрузки всех раскладок
+        total_sum = sum(totals) if totals else 1
+        # Вычисляем проценты от общей суммы (как в других графиках)
+        percentages = [(total / total_sum * 100) for total in totals]
+
         fig, ax = plt.subplots(figsize=(14, 2.8))
         y_pos = np.arange(len(names))
 
         colors = [self.layout_colors.get(name, 'gray') for name in names]
         labels = [self.layout_labels.get(name, name) for name in names]
-        ax.barh(y_pos, totals, color=colors, alpha=0.8)
+        bars = ax.barh(y_pos, percentages, color=colors, alpha=0.8)
 
-        # Подписи справа числовых значений
-        for i, total in enumerate(totals):
-            ax.text(total * 1.01, i, f'{total:.0f}', va='center', ha='left', fontsize=10, color='#333')
+        # Подписи справа с процентами (как в других графиках)
+        for i, (percent, total) in enumerate(zip(percentages, totals)):
+            ax.text(percent * 1.01, i, f'{percent:.1f}%', va='center', ha='left', fontsize=10, color='#333')
 
         ax.set_yticks(y_pos)
         ax.set_yticklabels(labels, fontsize=11)
-        ax.set_xlabel('Общая нагрузка (единицы пути)', fontsize=12)
+        ax.set_xlabel('Доля нагрузки (%)', fontsize=12)
         ax.set_title(f'Общая нагрузка по раскладкам ({corpus_name})',
                      fontsize=14, fontweight='bold')
 
@@ -191,6 +171,9 @@ class GraphicsAnalyzer:
         plt.show()
 
     def _create_hand_distribution_chart(self, layouts_data: list, corpus_name: str):
+        if not layouts_data or not NUMPY_AVAILABLE:
+            return
+
         names = [layout["name"] for layout in layouts_data]
         left_loads, right_loads = [], []
 
@@ -200,7 +183,7 @@ class GraphicsAnalyzer:
             left_loads.append(left_load)
             right_loads.append(right_load)
 
-        y = np.arange(len(names))
+        y = np.arange(len(names))  # Теперь np.arange должен работать
         height = 0.35
 
         fig, ax = plt.subplots(figsize=(14, 2.8))
@@ -213,12 +196,11 @@ class GraphicsAnalyzer:
         ax.barh(y + height / 2, right_loads, height,
                 label='Правая рука', color=colors, alpha=0.45)
 
-        # Подписи относительных долей
         for i, (l, r) in enumerate(zip(left_loads, right_loads)):
             total = l + r
             if total > 0:
-                ax.text(max(l, r) * 1.01, i - height / 2, f'{(l/total*100):.1f}%', va='center', fontsize=9)
-                ax.text(max(l, r) * 1.01, i + height / 2, f'{(r/total*100):.1f}%', va='center', fontsize=9)
+                ax.text(max(l, r) * 1.01, i - height / 2, f'{(l / total * 100):.1f}%', va='center', fontsize=9)
+                ax.text(max(l, r) * 1.01, i + height / 2, f'{(r / total * 100):.1f}%', va='center', fontsize=9)
 
         ax.set_yticks(y)
         ax.set_yticklabels(labels, fontsize=11)
@@ -232,7 +214,9 @@ class GraphicsAnalyzer:
         plt.show()
 
     def _create_hand_pie_charts(self, layouts_data: list, corpus_name: str):
-        """Круговые диаграммы: слова только левой рукой, только правой рукой, обе руки."""
+        if not layouts_data or not MATPLOTLIB_AVAILABLE:
+            return
+
         n_layouts = len(layouts_data)
         if n_layouts == 0:
             return
@@ -291,37 +275,26 @@ class GraphicsAnalyzer:
         plt.show()
 
     def showAll(self, results: list, corpus_name: str = "text"):
-        """
-        Построение всех графиков и диаграмм для одного текста.
-        Если corpus_name == 'text', дополнительно строятся круговые диаграммы.
-        """
         structured, all_layouts_data = self._prepare_results(results)
 
-        # Основные графики
-        self._create_all_layouts_comparison_chart(all_layouts_data, corpus_name)
-        self._create_total_load_chart(all_layouts_data, corpus_name)
-        self._create_hand_distribution_chart(all_layouts_data, corpus_name)
+        if MATPLOTLIB_AVAILABLE and NUMPY_AVAILABLE:
+            self._create_all_layouts_comparison_chart(all_layouts_data, corpus_name)
+            self._create_total_load_chart(all_layouts_data, corpus_name)
+            self._create_hand_distribution_chart(all_layouts_data, corpus_name)
 
-        # Круговые диаграммы только для текста 'text'
-        if corpus_name == "text":
-            self._create_hand_pie_charts(structured, corpus_name)
+            if corpus_name == "text":
+                self._create_hand_pie_charts(structured, corpus_name)
+        else:
+            print("Для отображения графиков установите numpy и matplotlib: pip install numpy matplotlib")
 
         return structured
 
     def showAllFromDict(self, results_dict: dict):
-        """
-        Построение графиков для всех текстов по очереди.
-        results_dict: словарь вида {"text": [...], "digramms": [...], "onegramms": [...], "csv": [...]}
-        """
         for corpus_name, results in results_dict.items():
             print(f"\n=== Построение графиков для текста: {corpus_name} ===")
             self.showAll(results, corpus_name=corpus_name)
 
     def showAveragedAll(self, results_dict: dict, corpus_name: str = "Среднее по текстам"):
-        """
-        Строит все графики на основе усреднённых данных по текстам.
-        Включает: нагрузку по пальцам, по рукам, общую нагрузку, круговые диаграммы.
-        """
         layout_accumulator = {}
 
         for corpus_results in results_dict.values():
