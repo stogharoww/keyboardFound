@@ -1,10 +1,7 @@
 """
-Модуль для оценки удобства раскладок клавиатуры.
-Измеряет удобство печати по трем параметрам:
-1. Расстояние, которое проходят пальцы
-2. Использование служебных клавиш (Shift, Alt, Ctrl)
-3. Частоту переключения между левой и правой рукой
-
+Оптимизированный модуль для анализа эргономики раскладок клавиатуры.
+Считает нагрузку по длине пути пальцев, модификаторам и смене рук.
+Анализирует текст, биграммы и CSV-файл с частотами.
 """
 
 import asyncio
@@ -18,50 +15,55 @@ from typing import Dict, Tuple, Optional
 
 class TextAnalyzer:
     """
-    ГЛАВНЫЙ КЛАСС - Анализатор раскладок клавиатуры.
-     оценивает, насколько удобно печатать на разных раскладках.
+    Основной класс для анализа эргономики раскладок клавиатуры.
+
+    Атрибуты:
+        shtraf_config (dict): Конфигурация штрафов за различные действия
+        debug_mode (bool): Режим отладки
+        layouts (dict): Загруженные раскладки клавиатуры
+        index_shtraf (Dict[str, int]): Карта индексов к штрафам
+        sym_best (Dict[str, Dict[str, Tuple[str, dict]]]): Лучшие варианты символов
+        idx_to_finger (Dict[str, Dict[str, str]]): Соответствие индексов пальцам
+        explicit_shift_syms (Dict[str, set]): Символы с явным шифтом
+        lookup_maps (Dict[str, Dict[str, Tuple[str, dict, str]]]): Быстрые карты поиска
+        last_results (dict): Последние результаты анализа
     """
 
     def __init__(self,
                  shtraf_config: dict | None = None,
                  debug_mode: bool = False):
         """
-        Настройка анализатора.
+        Инициализация анализатора текста.
 
-        shtraf_config - настройки штрафов (какие действия считаются сложными)
-        debug_mode - режим отладки (показывать ли дополнительную информацию)
+        Args:
+            shtraf_config (dict | None): Конфигурация штрафов. Если None, используется стандартная
+            debug_mode (bool): Включить режим отладки
         """
-        # Настройки штрафов за сложные действия
         self.shtraf_config = shtraf_config or {
-            'shift_penalty':          2,  # штраф за Shift
-            'alt_penalty':            3,  # штраф за Alt
-            'ctrl_penalty':           4,  # штраф за Ctrl
-            'same_finger_penalty':    1,  # штраф за повторное использование того же пальца
-            'hand_switch_penalty':    1   # штраф за переключение между руками
+            'shift_penalty':          2,
+            'alt_penalty':            1,   # Alt → правый большой палец, home row = пробел
+            'ctrl_penalty':           4,
+            'same_finger_penalty':    1,
+            'hand_switch_penalty':    1
         }
         self.debug_mode = debug_mode
-
-        # Здесь будут храниться все раскладки клавиатур
         self.layouts: dict[str, dict] = {}
 
-        # Вспомогательные карты - как "шпаргалки" для быстрого поиска
-        self.index_shtraf: Dict[str, int] = {}  # штрафы для каждой клавиши
-        self.sym_best: Dict[str, Dict[str, Tuple[str, dict]]] = {}  # лучшие варианты для символов
-        self.idx_to_finger: Dict[str, Dict[str, str]] = {}  # какая клавиша какому пальцу принадлежит
-        self.explicit_shift_syms: Dict[str, set] = {}  # символы, требующие Shift
-        self.lookup_maps: Dict[str, Dict[str, Tuple[str, dict, str]]] = {}  # быстрый поиск по символам
+        # Вспомогательные карты
+        self.index_shtraf: Dict[str, int] = {}
+        self.sym_best: Dict[str, Dict[str, Tuple[str, dict]]] = {}
+        self.idx_to_finger: Dict[str, Dict[str, str]] = {}
+        self.explicit_shift_syms: Dict[str, set] = {}
+        self.lookup_maps: Dict[str, Dict[str, Tuple[str, dict, str]]] = {}
 
-        # Последние результаты анализа (чтобы не пересчитывать)
+        # Последние результаты анализа
         self.last_results: dict = {}
 
     async def keybsInits(self):
-        """
-        Загружает все раскладки клавиатур и готовит их к анализу.
-        """
-        # Загружаем все раскладки из внешнего модуля
+        """Загрузка раскладок клавиатуры и построение вспомогательных карт."""
         self.layouts = await keyInitializations()
 
-        # Создаем карту штрафов для каждой позиции клавиши
+        # Построить index_shtraf
         shtraf_layout = self.layouts.get("ШТРАФЫ", {})
         shtraf_bukvaKey = shtraf_layout.get("bukvaKey", {})
         self.index_shtraf.clear()
@@ -73,7 +75,7 @@ class TextAnalyzer:
             except (ValueError, TypeError):
                 continue
 
-        # Для каждой раскладки создаем "шпаргалки" для быстрого поиска
+        # Для каждой раскладки подготовить карты
         for name, lay in self.layouts.items():
             if name == "ШТРАФЫ":
                 continue
@@ -82,14 +84,14 @@ class TextAnalyzer:
             modifierMap = lay.get("modifierMap", {})
             fingerKey = lay.get("fingerKey", {})
 
-            # Создаем карту: номер клавиши -> палец
+            # idx → finger
             idx_to_finger_map: Dict[str, str] = {}
             for finger, idxs in fingerKey.items():
                 for idx in idxs:
                     idx_to_finger_map[idx] = finger
             self.idx_to_finger[name] = idx_to_finger_map
 
-            # Находим лучший способ напечатать каждый символ
+            # sym → лучший вариант (idx, mod_info)
             best_map: Dict[str, Tuple[str, dict]] = {}
             explicit_shift_set = set()
             for idx, syms in bukvaKey.items():
@@ -103,7 +105,7 @@ class TextAnalyzer:
             self.sym_best[name] = best_map
             self.explicit_shift_syms[name] = explicit_shift_set
 
-            # Создаем универсальную карту для быстрого поиска
+            # Быстрый lookup: символ → (idx, mod_info, finger)
             lookup = {}
             for s, (idx, info) in best_map.items():
                 lookup[s] = (idx, info, idx_to_finger_map.get(idx))
@@ -111,16 +113,11 @@ class TextAnalyzer:
             self.lookup_maps[name] = lookup
 
     def base_index_shtraf(self, idx: str) -> int:
-        """
-        Возвращает базовый штраф для клавиши по ее номеру.
-        """
+        """Получить базовый штраф для индекса клавиши."""
         return self.index_shtraf.get(idx, 0)
 
     def modifier_shtraf_for_symbol(self, ch: str, layout_name: str, mod_info: dict) -> int:
-        """
-        Считает штрафы за модификаторы (Shift, Alt, Ctrl).
-        Как считать доплаты за дополнительные опции в заказе.
-        """
+        """Рассчитать штраф за модификаторы для символа."""
         shtraf = 0
         if mod_info.get("alt", False):
             shtraf += self.shtraf_config["alt_penalty"]
@@ -141,56 +138,51 @@ class TextAnalyzer:
         return shtraf
 
     def hand_label(self, finger: Optional[str]) -> str:
-        """
-        Определяет, какой руке принадлежит палец.
-        L - левая рука, R - правая рука.
-        """
+        """Определить метку руки по названию пальца."""
         if not finger:
             return ""
         return "L" if finger.startswith("lfi") else "R"
 
     def analyzeTextSync(self, text: str, layout: dict, progress, lock, batch: int = 50000) -> list:
-        """
-        Анализирует текст для одной раскладки.
-        проверяет  - символ за символом.
-        """
-        total_load = 0  # общая нагрузка
-        finger_stats: Dict[Optional[str], int] = {}  # статистика по пальцам
-        hand_switches = 0  # количество переключений между руками
-        modifier_count = 0  # количество использований модификаторов
+        """Синхронный анализ текста для одной раскладки."""
+        total_load = 0
+        finger_stats: Dict[Optional[str], int] = {}
+        hand_switches = 0
+        modifier_count = 0
 
         layout_name = layout.get("name", "Unknown")
         lookup = self.lookup_maps.get(layout_name, {})
 
-        last_finger: Optional[str] = None  # последний использованный палец
-        last_hand: str = ""  # последняя использованная рука
-        locally_count = 0  # счетчик для обновления прогресса
+        last_finger: Optional[str] = None
+        last_hand: str = ""
+        locally_count = 0
 
-        # Анализируем каждый символ в тексте
+        # --- предвычисляем штрафы для всех символов раскладки ---
+        precomputed = {}
+        for ch, (idx, mod_info, finger) in lookup.items():
+            base = self.base_index_shtraf(idx)
+            mods = self.modifier_shtraf_for_symbol(ch, layout_name, mod_info)
+            precomputed[ch] = (base + mods, finger, mods)
+
+        # --- основной цикл по тексту ---
         for ch in text:
             if ch in {"\n", "\r", "\t"}:
                 continue
 
-            resolved = lookup.get(ch)
-            if not resolved:
+            if ch not in precomputed:
                 continue
 
-            idx, mod_info, finger = resolved
+            effort, finger, mods = precomputed[ch]
+
             if finger is None:
                 finger_stats[None] = finger_stats.get(None, 0) + 1
                 continue
 
-            base = self.base_index_shtraf(idx)
-            mods = self.modifier_shtraf_for_symbol(ch, layout_name, mod_info)
-            effort = base + mods
-
-            # Проверяем переключение между руками
             current_hand = self.hand_label(finger)
             if last_hand and current_hand and last_hand != current_hand:
                 effort += self.shtraf_config["hand_switch_penalty"]
                 hand_switches += 1
 
-            # Штраф за повторное использование того же пальца
             if last_finger and finger and last_finger == finger:
                 effort += self.shtraf_config["same_finger_penalty"]
 
@@ -216,9 +208,7 @@ class TextAnalyzer:
         return [layout_name, total_load, hand_switches, modifier_count, finger_stats]
 
     async def compareLayouts(self, text: str, layouts: dict, file_label: str = "Текст") -> list:
-        """
-        Сравнивает все раскладки на одном тексте.\
-        """
+        """Асинхронный анализ текста для всех раскладок."""
         n_layouts = sum(1 for name in layouts if name != "ШТРАФЫ")
         total_steps = len(text) * n_layouts
         progress = tqdm(total=total_steps,
@@ -226,7 +216,6 @@ class TextAnalyzer:
                         unit="симв")
         lock = threading.Lock()
 
-        # Запускаем анализ для всех раскладок параллельно
         tasks = []
         for name, lay in layouts.items():
             if name == "ШТРАФЫ":
@@ -238,10 +227,7 @@ class TextAnalyzer:
         return results_raw
 
     async def analyze_csv(self, csv_file: str, layouts: dict) -> list:
-        """
-        Анализирует CSV-файл с биграммами и частотами.
-        Учитывает частоты использования - популярные комбинации влияют сильнее.
-        """
+        """Анализ CSV-файла с частотами биграмм."""
         df = pd.read_csv(csv_file, header=None, sep=",")
         results = []
         for name, lay in layouts.items():
@@ -253,7 +239,6 @@ class TextAnalyzer:
             modifier_count = 0
             lookup = self.lookup_maps.get(name, {})
 
-            # Анализируем каждую биграмму с учетом ее частоты
             for _, row in df.iterrows():
                 bigram = str(row[1])
                 freq = int(row[2])
@@ -264,17 +249,23 @@ class TextAnalyzer:
                     idx, mod_info, finger = resolved
                     base = self.base_index_shtraf(idx)
                     mods = self.modifier_shtraf_for_symbol(ch, name, mod_info)
-                    effort = (base + mods) * freq  # умножаем на частоту!
+                    effort = (base + mods) * freq
                     total_load += effort
                     finger_stats[finger] = finger_stats.get(finger, 0) + effort
+
+                    if mods > 0:
+                        modifier_count += freq
 
             results.append([name, total_load, hand_switches, modifier_count, finger_stats])
         return results
 
     def analyze_words(self, text: str, layout_name: str) -> dict:
         """
-        Анализирует, какой рукой печатаются слова.
-        Показывает распределение нагрузки между руками.
+        Анализирует распределение слов по рукам.
+        Возвращает словарь:
+            - left_only: слова, набираемые только левой рукой
+            - right_only: слова, набираемые только правой рукой
+            - both: слова, набираемые обеими руками
         """
         stats = {"left_only": 0, "right_only": 0, "both": 0}
         words = text.split()
@@ -292,7 +283,6 @@ class TextAnalyzer:
                     hand = "L" if finger.startswith("lfi") else "R"
                     hands_used.add(hand)
 
-            # Классифицируем слова по используемым рукам
             if len(hands_used) == 1:
                 if "L" in hands_used:
                     stats["left_only"] += 1
@@ -305,19 +295,21 @@ class TextAnalyzer:
 
     async def run_full_analysis(self) -> dict:
         """
-        Запускает ПОЛНЫЙ АНАЛИЗ всех файлов.
-        Главная функция - делает всю работу сразу.
+        Запускает полный анализ всех текстов.
+        Анализирует:
+            - Основной текст (data/voina-i-mir.txt)
+            - Биграммы (data/digramms.txt)
+            - 1-граммы (data/1grams-3.txt)
+            - CSV с частотами (data/sortchbukw.csv)
         """
-        import unicodedata
         import os
 
-        # Файлы для анализа
-        textFile = "data/voina-i-mir.txt"  # большой текст
-        digramsFile = "data/digramms.txt"  # пары символов
-        onegramsFile = "data/1grams-3.txt"  # одиночные символы
-        csvFile = "data/sortchbukw.csv"    # CSV с частотами
+        textFile = "data/voina-i-mir.txt"
+        digramsFile = "data/digramms.txt"
+        onegramsFile = "data/1grams-3.txt"
+        csvFile = "data/sortchbukw.csv"
 
-        # Подготавливаем раскладки
+        # Инициализация раскладок
         await self.keybsInits()
 
         # --- Анализ основного текста ---
@@ -325,9 +317,9 @@ class TextAnalyzer:
             text = unicodedata.normalize("NFC", f.read())
         results_text = await self.compareLayouts(text, self.layouts, file_label=os.path.basename(textFile))
 
-        # Добавляем статистику по словам для диаграмм
+        # добавляем статистику по словам для круговых диаграмм
         for res in results_text:
-            layout_name = res[0]
+            layout_name = res[0]  # имя раскладки
             word_stats = self.analyze_words(text, layout_name)
             res.append(word_stats)
 
@@ -348,7 +340,7 @@ class TextAnalyzer:
         # --- Анализ CSV ---
         results_csv = await self.analyze_csv(csvFile, self.layouts)
 
-        # Сохраняем все результаты
+        # Сохраняем СЫРЫЕ результаты в память
         self.last_results = {
             "text": results_text,
             "digramms": results_digrams,
